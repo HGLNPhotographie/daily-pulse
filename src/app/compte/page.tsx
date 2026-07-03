@@ -9,15 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserSession } from "@/hooks/useUserSession";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import type { AgeRange, Gender } from "@/types";
-
-const AGE_RANGES: { value: AgeRange; label: string }[] = [
-  { value: "18-24", label: "18–24 ans" },
-  { value: "25-34", label: "25–34 ans" },
-  { value: "35-44", label: "35–44 ans" },
-  { value: "45-54", label: "45–54 ans" },
-  { value: "55+", label: "55 ans et +" },
-];
+import { ageRangeLabel } from "@/lib/user-profile";
+import type { Gender } from "@/types";
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: "female", label: "Femme" },
@@ -26,11 +19,17 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: "prefer_not", label: "Ne souhaite pas répondre" },
 ];
 
+function formatBirthDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const [y, m, d] = value.split("-");
+  if (!y || !m || !d) return value;
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("fr-FR");
+}
+
 export default function ComptePage() {
   const { status, user, isAnonymous, signOut } = useUserSession();
   const { profile, isLoading, updateProfile, displayStreak } = useUserProfile();
   const [pseudo, setPseudo] = useState("");
-  const [ageRange, setAgeRange] = useState<AgeRange | "">("");
   const [gender, setGender] = useState<Gender | "">("");
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +37,6 @@ export default function ComptePage() {
     if (profile) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPseudo(profile.pseudo ?? "");
-      setAgeRange(profile.age_range ?? "");
       setGender(profile.gender ?? "");
     }
   }, [profile]);
@@ -52,7 +50,6 @@ export default function ComptePage() {
     setSaving(true);
     const result = await updateProfile({
       pseudo: pseudo.trim(),
-      age_range: ageRange || null,
       gender: gender || null,
     });
     setSaving(false);
@@ -107,7 +104,7 @@ export default function ComptePage() {
 
           <form onSubmit={handleSaveProfile} className="space-y-3">
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Pseudo (affiché au classement)
+              Pseudo (unique)
             </label>
             <input
               value={pseudo}
@@ -118,20 +115,18 @@ export default function ComptePage() {
             />
 
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Tranche d&apos;âge (optionnel)
+              Date de naissance
             </label>
-            <select
-              value={ageRange}
-              onChange={(e) => setAgeRange(e.target.value as AgeRange | "")}
-              className="w-full rounded-xl border border-border bg-background/60 p-3 text-sm outline-none"
-            >
-              <option value="">—</option>
-              {AGE_RANGES.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
+            <p className="rounded-xl border border-border/60 bg-background/40 px-3 py-2.5 text-sm text-muted-foreground">
+              {formatBirthDate(profile?.birth_date)}
+            </p>
+
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Tranche d&apos;âge (stats)
+            </label>
+            <p className="rounded-xl border border-border/60 bg-background/40 px-3 py-2.5 text-sm text-muted-foreground">
+              {ageRangeLabel(profile?.age_range)}
+            </p>
 
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Genre (optionnel)

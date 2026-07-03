@@ -10,12 +10,13 @@ import { StreakFlame } from "@/components/flame/StreakFlame";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { deleteUserAccount, setUserBanned } from "@/lib/admin-api";
 import { getDemoUsers } from "@/lib/demo";
+import { ageRangeLabel } from "@/lib/user-profile";
 import { useUserSession } from "@/hooks/useUserSession";
-import type { UserProfile } from "@/types";
+import type { AdminUserListItem } from "@/types";
 
 export default function AdminUsersPage() {
   const { user: currentUser } = useUserSession();
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -25,8 +26,8 @@ export default function AdminUsersPage() {
       return;
     }
     const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase!.from("users").select("*").order("current_streak", { ascending: false });
-    setUsers((data as UserProfile[]) ?? []);
+    const { data } = await supabase!.from("admin_user_directory").select("*").order("current_streak", { ascending: false });
+    setUsers((data as AdminUserListItem[]) ?? []);
   }, []);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function AdminUsersPage() {
     refresh();
   }, [refresh]);
 
-  const toggleAdmin = async (target: UserProfile) => {
+  const toggleAdmin = async (target: AdminUserListItem) => {
     if (!isSupabaseConfigured) {
       toast.info("Indisponible en mode démo.");
       return;
@@ -55,7 +56,7 @@ export default function AdminUsersPage() {
     await refresh();
   };
 
-  const toggleBan = async (target: UserProfile) => {
+  const toggleBan = async (target: AdminUserListItem) => {
     if (target.is_admin) {
       toast.error("Impossible de bannir un administrateur.");
       return;
@@ -81,7 +82,7 @@ export default function AdminUsersPage() {
     await refresh();
   };
 
-  const handleDelete = async (target: UserProfile) => {
+  const handleDelete = async (target: AdminUserListItem) => {
     if (target.is_admin) {
       toast.error("Impossible de supprimer un administrateur.");
       return;
@@ -170,6 +171,9 @@ export default function AdminUsersPage() {
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{u.email ?? "—"}</p>
+                  {u.age_range && (
+                    <p className="text-[11px] text-muted-foreground/80">Tranche : {ageRangeLabel(u.age_range)}</p>
+                  )}
                 </div>
               </div>
 

@@ -30,13 +30,14 @@ export interface Vote {
   is_in_time: boolean;
 }
 
-export type AgeRange = "18-24" | "25-34" | "35-44" | "45-54" | "55+";
+export type AgeRange = "16-17" | "18-24" | "25-34" | "35-44" | "45-54" | "55+";
 export type Gender = "female" | "male" | "other" | "prefer_not";
 
 export interface UserProfile {
   id: string;
   email: string | null;
   pseudo: string | null;
+  birth_date?: string | null;
   age_range: AgeRange | null;
   gender: Gender | null;
   profile_completed_at: string | null;
@@ -48,6 +49,9 @@ export interface UserProfile {
   banned_at?: string | null;
   created_at: string;
 }
+
+/** Profil utilisateur exposé dans l'admin (sans date de naissance). */
+export type AdminUserListItem = Omit<UserProfile, "birth_date">;
 
 export interface Suggestion {
   id: string;

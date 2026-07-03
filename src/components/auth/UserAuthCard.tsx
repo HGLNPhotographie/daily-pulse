@@ -7,14 +7,20 @@ import { Lock, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { userIsAdmin } from "@/lib/admin-check";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { normalizePseudo, validateBirthDate, validatePseudo } from "@/lib/user-profile";
 import { useUserSession } from "@/hooks/useUserSession";
 
 type AuthMode = "signup" | "signin";
+
+const inputClassName =
+  "w-full rounded-xl border border-border bg-background/60 p-3 text-sm outline-none ring-primary/50 focus:ring-2";
 
 export function UserAuthCard() {
   const router = useRouter();
   const { isAnonymous, signUpEmail, signInEmail } = useUserSession();
   const [mode, setMode] = useState<AuthMode>("signup");
+  const [pseudo, setPseudo] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +29,30 @@ export function UserAuthCard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (mode === "signup") {
+      const pseudoError = validatePseudo(pseudo);
+      if (pseudoError) {
+        setError(pseudoError);
+        return;
+      }
+      const birthError = validateBirthDate(birthDate);
+      if (birthError) {
+        setError(birthError);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     const result =
-      mode === "signup" ? await signUpEmail(email, password) : await signInEmail(email, password);
+      mode === "signup"
+        ? await signUpEmail({
+            email,
+            password,
+            pseudo: normalizePseudo(pseudo),
+            birthDate,
+          })
+        : await signInEmail(email, password);
     setIsSubmitting(false);
     if (result.error) {
       setError(result.error);
@@ -42,6 +69,10 @@ export function UserAuthCard() {
       }
     }
   };
+
+  const maxBirthDate = new Date();
+  maxBirthDate.setFullYear(maxBirthDate.getFullYear() - 16);
+  const maxBirthDateStr = maxBirthDate.toISOString().slice(0, 10);
 
   return (
     <motion.div
@@ -87,13 +118,41 @@ export function UserAuthCard() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        {mode === "signup" && (
+          <>
+            <input
+              type="text"
+              required
+              value={pseudo}
+              onChange={(e) => setPseudo(e.target.value)}
+              placeholder="Pseudo (unique)"
+              maxLength={24}
+              autoComplete="username"
+              className={inputClassName}
+            />
+            <div>
+              <input
+                type="date"
+                required
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                max={maxBirthDateStr}
+                className={inputClassName}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Tu dois avoir au moins 16 ans. Ton âge exact reste privé.
+              </p>
+            </div>
+          </>
+        )}
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full rounded-xl border border-border bg-background/60 p-3 text-sm outline-none ring-primary/50 focus:ring-2"
+          autoComplete="email"
+          className={inputClassName}
         />
         <input
           type="password"
@@ -102,7 +161,8 @@ export function UserAuthCard() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Mot de passe (6 caractères min.)"
-          className="w-full rounded-xl border border-border bg-background/60 p-3 text-sm outline-none ring-primary/50 focus:ring-2"
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          className={inputClassName}
         />
         {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
         <Button type="submit" disabled={isSubmitting} className="w-full gap-2">

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useUserSession } from "@/hooks/useUserSession";
-import type { AgeRange, Gender, UserProfile } from "@/types";
+import { formatSignupProfileError, normalizePseudo, validatePseudo } from "@/lib/user-profile";
+import type { Gender, UserProfile } from "@/types";
 
 const DEMO_STREAK_KEY = "daily-pulse:demo-streak";
 const DEMO_BEST_KEY = "daily-pulse:demo-best-streak";
@@ -12,11 +13,7 @@ interface UseUserProfileResult {
   profile: UserProfile | null;
   isLoading: boolean;
   refresh: () => Promise<void>;
-  updateProfile: (updates: {
-    pseudo?: string;
-    age_range?: AgeRange | null;
-    gender?: Gender | null;
-  }) => Promise<{ error: string | null }>;
+  updateProfile: (updates: { pseudo?: string; gender?: Gender | null }) => Promise<{ error: string | null }>;
   /** Streak affichable (Supabase ou démo localStorage). */
   displayStreak: number;
   displayBest: number;
@@ -57,18 +54,27 @@ export function useUserProfile(): UseUserProfileResult {
   }, [refresh, user?.id, user?.is_anonymous, status]);
 
   const updateProfile = useCallback(
-    async (updates: { pseudo?: string; age_range?: AgeRange | null; gender?: Gender | null }) => {
+    async (updates: { pseudo?: string; gender?: Gender | null }) => {
       if (!user || user.is_anonymous) return { error: "Connecte-toi pour modifier ton profil." };
       const supabase = getSupabaseBrowserClient();
       if (!supabase) return { error: "Client indisponible." };
 
-      const payload = {
-        ...updates,
-        profile_completed_at: updates.pseudo?.trim() ? new Date().toISOString() : undefined,
-      };
+      const payload: { pseudo?: string; gender?: Gender | null; profile_completed_at?: string } = {};
+
+      if (updates.pseudo !== undefined) {
+        const pseudoError = validatePseudo(updates.pseudo);
+        if (pseudoError) return { error: pseudoError };
+        payload.pseudo = normalizePseudo(updates.pseudo);
+      }
+      if (updates.gender !== undefined) {
+        payload.gender = updates.gender;
+      }
+      if (payload.pseudo) {
+        payload.profile_completed_at = new Date().toISOString();
+      }
 
       const { error } = await supabase.from("users").update(payload).eq("id", user.id);
-      if (error) return { error: error.message };
+      if (error) return { error: formatSignupProfileError(error.message) };
       await refresh();
       return { error: null };
     },
