@@ -77,6 +77,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   const [now, setNow] = useState(() => Date.now());
   const mountedRef = useRef(true);
   const currentQuestionIdRef = useRef<string | null>(null);
+  const questionRef = useRef<Question | null>(null);
   const myVoteRef = useRef<VoteChoice | null>(null);
   const closingRef = useRef(false);
 
@@ -89,6 +90,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
   useEffect(() => {
     currentQuestionIdRef.current = question?.id ?? null;
+    questionRef.current = question;
   }, [question]);
 
   useEffect(() => {
@@ -125,21 +127,44 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     [clearQuestionState]
   );
 
-  const applyLiveQuestion = useCallback((updated: Question) => {
-    if (!mountedRef.current) return;
-    const normalized = withQuestionOptions(updated);
-    if (!currentQuestionIdRef.current) {
-      if (!isQuestionLiveForUsers(updated)) return;
-      setQuestion(normalized);
-      return;
-    }
-    if (currentQuestionIdRef.current === normalized.id) {
-      setQuestion(normalized);
-      return;
-    }
-    if (!isQuestionLiveForUsers(updated)) return;
-    setIncomingQuestion(normalized);
+  const applyIncomingQuestion = useCallback((normalized: Question) => {
+    setQuestion(normalized);
+    setMyVote(null);
+    setStreakDelta(0);
+    setCurtainOpen(false);
+    setIncomingQuestion(null);
+    setIsCurtainClosing(false);
+    closingRef.current = false;
   }, []);
+
+  const applyLiveQuestion = useCallback(
+    (updated: Question) => {
+      if (!mountedRef.current) return;
+      const normalized = withQuestionOptions(updated);
+      if (!isQuestionLiveForUsers(updated)) return;
+
+      const currentId = currentQuestionIdRef.current;
+      const current = questionRef.current;
+
+      if (!currentId || !current) {
+        applyIncomingQuestion(normalized);
+        return;
+      }
+
+      if (currentId === normalized.id) {
+        setQuestion(normalized);
+        return;
+      }
+
+      if (!isQuestionLiveForUsers(current)) {
+        applyIncomingQuestion(normalized);
+        return;
+      }
+
+      setIncomingQuestion(normalized);
+    },
+    [applyIncomingQuestion]
+  );
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -231,6 +256,9 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "questions" }, (payload: RealtimePostgresChangesPayload<Question>) => {
         applyLiveQuestion(payload.new as Question);
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "questions" }, (payload: RealtimePostgresChangesPayload<Question>) => {
+        applyLiveQuestion(payload.new as Question);
+      })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "questions" }, (payload: RealtimePostgresChangesPayload<Question>) => {
         const old = payload.old as { id?: string };
         if (old.id) handleQuestionRemoved(old.id);
@@ -315,6 +343,30 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     };
   }, [applyLiveQuestion, clearQuestionState, handleQuestionRemoved]);
 
+  // Filet de sécurité si Realtime rate un INSERT (ex. onglet en arrière-plan).
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const pollLiveQuestion = async () => {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase
+        .from("questions")
+        .select("*")
+        .lte("active_at", nowIso)
+        .gt("expires_at", nowIso)
+        .order("active_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) applyLiveQuestion(data as Question);
+    };
+
+    const id = window.setInterval(() => void pollLiveQuestion(), 12_000);
+    return () => window.clearInterval(id);
+  }, [applyLiveQuestion]);
+
   // Réabonnement Realtime quand la question affichée change.
   useEffect(() => {
     if (!isSupabaseConfigured || !question?.id) return;
@@ -344,12 +396,8 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
   const acceptIncomingQuestion = useCallback(() => {
     if (!incomingQuestion) return;
-    setQuestion(incomingQuestion);
-    setMyVote(null);
-    setStreakDelta(0);
-    setCurtainOpen(false);
-    setIncomingQuestion(null);
-  }, [incomingQuestion]);
+    applyIncomingQuestion(withQuestionOptions(incomingQuestion));
+  }, [incomingQuestion, applyIncomingQuestion]);
 
   const submitVote = useCallback(
     async (choice: VoteChoice): Promise<boolean> => {

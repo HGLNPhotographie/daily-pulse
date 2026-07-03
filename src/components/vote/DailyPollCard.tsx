@@ -8,8 +8,10 @@ import { CountdownShowTV } from "@/components/vote/CountdownShowTV";
 import { VoteButtons } from "@/components/vote/VoteButtons";
 import { TrendChart } from "@/components/vote/TrendChart";
 import { StreakFlame } from "@/components/flame/StreakFlame";
+import { GuestResultsGate } from "@/components/vote/GuestResultsGate";
 import { useDailyQuestion } from "@/hooks/useDailyQuestion";
 import { bumpDemoStreakLocal, useUserProfile } from "@/hooks/useUserProfile";
+import { useUserSession } from "@/hooks/useUserSession";
 import { KITSH_CURTAIN_LABEL } from "@/lib/question-active";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { computeResults } from "@/types";
@@ -36,6 +38,7 @@ export function DailyPollCard() {
     error,
     streakDelta,
   } = useDailyQuestion();
+  const { isAnonymous, status: userStatus } = useUserSession();
   const { displayStreak, refresh: refreshProfile } = useUserProfile();
   const [demoStreak, setDemoStreak] = useState(readDemoStreak);
   const streak = isSupabaseConfigured ? displayStreak : demoStreak;
@@ -85,9 +88,17 @@ export function DailyPollCard() {
   const hasVoted = Boolean(myVote);
   const votedInTime = hasVoted && streakDelta === 1;
   const curtainVisible = !isCurtainClosing && (curtainOpen || hasVoted);
+  const canSeeLiveResults = !isSupabaseConfigured || (userStatus !== "loading" && !isAnonymous);
+  const showGuestResultsGate = isSupabaseConfigured && userStatus !== "loading" && isAnonymous && hasVoted;
 
   return (
-    <div className="flex flex-1 flex-col items-center px-4 pt-8">
+    <div className="relative flex flex-1 flex-col items-center px-4 pt-8">
+      {showGuestResultsGate && (
+        <div
+          className="pointer-events-none fixed inset-0 z-40 bg-black/45 backdrop-blur-md"
+          aria-hidden
+        />
+      )}
       <header className="mb-4 flex w-full max-w-md items-center justify-between">
         <Badge className="gap-1.5 border-none bg-red-600/90 text-white">
           <Radio className="h-3.5 w-3.5 animate-pulse" />
@@ -142,12 +153,16 @@ export function DailyPollCard() {
                   <Tv2 className="h-3.5 w-3.5" />
                   {votedInTime ? "Vote validé dans les temps · flamme +1" : "Vote enregistré"}
                 </Badge>
-                <TrendChart results={results} options={question.options} myVote={myVote} />
+                {canSeeLiveResults && (
+                  <TrendChart results={results} options={question.options} myVote={myVote} />
+                )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </CurtainReveal>
+
+      <GuestResultsGate open={showGuestResultsGate} votedInTime={votedInTime} />
     </div>
   );
 }
