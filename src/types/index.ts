@@ -82,6 +82,7 @@ export function computeResults(q: Pick<Question, "total_pour" | "total_contre" |
 /** État de la session de vote du jour, calculé côté client pour piloter l'UI. */
 export type PollPhase =
   | "loading"
+  | "no-question" // aucune question en cours — rideau fermé
   | "before-window" // la question du jour n'a pas encore été révélée
   | "curtain" // fenêtre active, rideau pas encore ouvert
   | "voting" // rideau ouvert, compte à rebours en cours, pas encore voté

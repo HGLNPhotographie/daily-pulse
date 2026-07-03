@@ -18,6 +18,7 @@ import {
   getDemoVote,
   subscribeDemoLiveActivity,
 } from "@/lib/demo";
+import { isQuestionLiveForUsers } from "@/lib/question-active";
 import { withQuestionOptions } from "@/lib/question-options";
 import type { PollPhase, Question, VoteChoice } from "@/types";
 
@@ -62,6 +63,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   const [error, setError] = useState<string | null>(null);
   const [streakDelta, setStreakDelta] = useState<0 | 1>(0);
   const [incomingQuestion, setIncomingQuestion] = useState<Question | null>(null);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const mountedRef = useRef(true);
   const currentQuestionIdRef = useRef<string | null>(null);
@@ -77,14 +79,35 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     currentQuestionIdRef.current = question?.id ?? null;
   }, [question]);
 
-  const applyIncoming = useCallback((updated: Question) => {
-    if (!mountedRef.current) return;
+  const clearQuestionState = useCallback(() => {
+    setQuestion(null);
+    setMyVote(null);
+    setStreakDelta(0);
+    setCurtainOpen(false);
+  }, []);
+
+  const handleQuestionRemoved = useCallback(
+    (deletedId: string) => {
+      if (currentQuestionIdRef.current === deletedId) {
+        clearQuestionState();
+      }
+      setIncomingQuestion((q) => (q?.id === deletedId ? null : q));
+    },
+    [clearQuestionState]
+  );
+
+  const applyLiveQuestion = useCallback((updated: Question) => {
+    if (!mountedRef.current || !isQuestionLiveForUsers(updated)) return;
     const normalized = withQuestionOptions(updated);
-    if (!currentQuestionIdRef.current || currentQuestionIdRef.current === normalized.id) {
+    if (!currentQuestionIdRef.current) {
       setQuestion(normalized);
-    } else {
-      setIncomingQuestion(normalized);
+      return;
     }
+    if (currentQuestionIdRef.current === normalized.id) {
+      setQuestion(normalized);
+      return;
+    }
+    setIncomingQuestion(normalized);
   }, []);
 
   useEffect(() => {
@@ -92,31 +115,58 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     return () => clearInterval(id);
   }, []);
 
+  // Expire ou hors fenêtre → masquer la question (pas d'historique public).
+  useEffect(() => {
+    if (!question) return;
+    if (!isQuestionLiveForUsers(question, now)) {
+      clearQuestionState();
+    }
+  }, [now, question, clearQuestionState]);
+
   useEffect(() => {
     if (isSupabaseConfigured) return;
 
     let cancelled = false;
 
+    const loadVoteForQuestion = (q: Question) => {
+      clearDemoVoteForQuestion(q.id);
+      const existing = getDemoVote();
+      if (existing && existing.choice) {
+        setMyVote(existing.choice);
+        setStreakDelta(existing.isInTime ? 1 : 0);
+        setCurtainOpen(true);
+      } else {
+        setMyVote(null);
+        setStreakDelta(0);
+        setCurtainOpen(false);
+      }
+    };
+
     (async () => {
       try {
         const q = await fetchDemoQuestion();
         if (cancelled || !mountedRef.current) return;
-        clearDemoVoteForQuestion(q.id);
-        setQuestion(withQuestionOptions(q));
-        const existing = getDemoVote();
-        if (existing) {
-          setMyVote(existing.choice);
-          setStreakDelta(existing.isInTime ? 1 : 0);
-          setCurtainOpen(true);
+        if (q && isQuestionLiveForUsers(q)) {
+          setQuestion(withQuestionOptions(q));
+          loadVoteForQuestion(q);
+        } else {
+          clearQuestionState();
         }
       } catch (e) {
         if (mountedRef.current) {
           setError(e instanceof Error ? e.message : "Impossible de charger la question démo.");
         }
+      } finally {
+        if (!cancelled && mountedRef.current) setInitialLoaded(true);
       }
     })();
 
     const unsubscribe = subscribeDemoLiveActivity((updated) => {
+      if (!updated) {
+        clearQuestionState();
+        setIncomingQuestion(null);
+        return;
+      }
       const prevId = currentQuestionIdRef.current;
       if (prevId && prevId !== updated.id) {
         setMyVote(null);
@@ -124,14 +174,18 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         setCurtainOpen(false);
       }
       clearDemoVoteForQuestion(updated.id);
-      applyIncoming(updated);
+      if (!isQuestionLiveForUsers(updated)) {
+        if (prevId === updated.id) clearQuestionState();
+        return;
+      }
+      applyLiveQuestion(updated);
     });
 
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [applyIncoming]);
+  }, [applyLiveQuestion, clearQuestionState]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -139,13 +193,15 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     if (!supabase) return;
 
     let cancelled = false;
-    let questionChannel: ReturnType<typeof supabase.channel> | null = null;
 
     const newQuestionChannel = supabase
-      .channel("questions-new")
+      .channel("questions-live")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "questions" }, (payload: RealtimePostgresChangesPayload<Question>) => {
-        const inserted = payload.new as Question;
-        if (new Date(inserted.active_at).getTime() <= Date.now()) applyIncoming(inserted);
+        applyLiveQuestion(payload.new as Question);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "questions" }, (payload: RealtimePostgresChangesPayload<Question>) => {
+        const old = payload.old as { id?: string };
+        if (old.id) handleQuestionRemoved(old.id);
       })
       .subscribe();
 
@@ -155,52 +211,75 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       });
       if (cancelled) return;
 
+      const nowIso = new Date().toISOString();
       const { data, error: qError } = await supabase
         .from("questions")
         .select("*")
-        .lte("active_at", new Date().toISOString())
+        .lte("active_at", nowIso)
+        .gt("expires_at", nowIso)
         .order("active_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (cancelled) return;
       if (qError) setError(qError.message);
-      if (data && mountedRef.current) setQuestion(withQuestionOptions(data as Question));
 
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes?.user?.id;
-      if (uid && data) {
-        const { data: existingVote } = await supabase
-          .from("votes")
-          .select("choice, is_in_time")
-          .eq("question_id", data.id)
-          .eq("user_id", uid)
-          .maybeSingle();
-        if (!cancelled && existingVote && mountedRef.current) {
-          setMyVote(existingVote.choice as VoteChoice);
-          setStreakDelta(existingVote.is_in_time ? 1 : 0);
-          setCurtainOpen(true);
+      if (data && mountedRef.current && isQuestionLiveForUsers(data as Question)) {
+        setQuestion(withQuestionOptions(data as Question));
+
+        const { data: userRes } = await supabase.auth.getUser();
+        const uid = userRes?.user?.id;
+        if (uid) {
+          const { data: existingVote } = await supabase
+            .from("votes")
+            .select("choice, is_in_time")
+            .eq("question_id", data.id)
+            .eq("user_id", uid)
+            .maybeSingle();
+          if (!cancelled && existingVote && mountedRef.current) {
+            setMyVote(existingVote.choice as VoteChoice);
+            setStreakDelta(existingVote.is_in_time ? 1 : 0);
+            setCurtainOpen(true);
+          }
         }
+
+      } else if (mountedRef.current) {
+        clearQuestionState();
       }
 
-      if (cancelled || !data) return;
-
-      questionChannel = supabase
-        .channel(`question-${data.id}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "questions", filter: `id=eq.${data.id}` },
-          (payload: RealtimePostgresChangesPayload<Question>) => applyIncoming(payload.new as Question)
-        )
-        .subscribe();
+      if (!cancelled && mountedRef.current) setInitialLoaded(true);
     })();
 
     return () => {
       cancelled = true;
-      if (questionChannel) supabase.removeChannel(questionChannel);
       supabase.removeChannel(newQuestionChannel);
     };
-  }, [applyIncoming]);
+  }, [applyLiveQuestion, clearQuestionState, handleQuestionRemoved]);
+
+  // Réabonnement Realtime quand la question affichée change.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !question?.id) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`question-${question.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "questions", filter: `id=eq.${question.id}` },
+        (payload: RealtimePostgresChangesPayload<Question>) => applyLiveQuestion(payload.new as Question)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "questions", filter: `id=eq.${question.id}` },
+        () => handleQuestionRemoved(question.id)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [question?.id, applyLiveQuestion, handleQuestionRemoved]);
 
   const openCurtain = useCallback(() => setCurtainOpen(true), []);
 
@@ -265,13 +344,13 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   );
 
   const phase: PollPhase = (() => {
-    if (!question) return "loading";
-    const active = new Date(question.active_at).getTime();
+    if (!initialLoaded) return "loading";
+    if (!question || !isQuestionLiveForUsers(question, now)) return "no-question";
+
     const expires = new Date(question.expires_at).getTime();
 
-    if (now < active) return "before-window";
-    if (myVote) return now < expires || streakDelta === 1 ? "voted-in-time" : "expired-voted-late";
-    if (now >= expires) return "expired-no-vote";
+    if (myVote) return now < expires || streakDelta === 1 ? "voted-in-time" : "no-question";
+    if (now >= expires) return "no-question";
     return curtainOpen ? "voting" : "curtain";
   })();
 

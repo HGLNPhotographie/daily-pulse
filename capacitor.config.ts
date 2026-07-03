@@ -22,7 +22,7 @@ const serverUrl = process.env.CAPACITOR_SERVER_URL;
 
 const config: CapacitorConfig = {
   appId: "app.dailypulse.mobile",
-  appName: "Daily Pulse",
+  appName: "Kitsh",
   webDir: "public",
   backgroundColor: "#0a0612",
   ...(serverUrl && {

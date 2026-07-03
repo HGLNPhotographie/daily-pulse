@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Radio, Tv2, ZapOff } from "lucide-react";
+import { Radio, Tv2 } from "lucide-react";
 import { CurtainReveal } from "@/components/curtain/CurtainReveal";
 import { CountdownShowTV } from "@/components/vote/CountdownShowTV";
 import { VoteButtons } from "@/components/vote/VoteButtons";
@@ -10,6 +10,7 @@ import { TrendChart } from "@/components/vote/TrendChart";
 import { StreakFlame } from "@/components/flame/StreakFlame";
 import { useDailyQuestion } from "@/hooks/useDailyQuestion";
 import { bumpDemoStreakLocal, useUserProfile } from "@/hooks/useUserProfile";
+import { KITSH_CURTAIN_LABEL } from "@/lib/question-active";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { computeResults } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,6 @@ function readDemoStreak() {
   return raw ? Number(raw) : 4;
 }
 
-/** Composant principal du "Rendez-vous Quotidien" : orchestre rideau, compte à rebours, vote et résultats. */
 export function DailyPollCard() {
   const {
     question,
@@ -57,7 +57,7 @@ export function DailyPollCard() {
     }
   }, [phase, openCurtain]);
 
-  if (phase === "loading" || !question) {
+  if (phase === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center">
         <motion.div
@@ -69,13 +69,22 @@ export function DailyPollCard() {
     );
   }
 
-  if (phase === "before-window") {
-    return <WaitingRoom streak={streak} />;
+  if (phase === "no-question" || !question) {
+    return (
+      <div className="flex flex-1 flex-col items-center px-4 pt-8">
+        <header className="mb-4 flex w-full max-w-md items-center justify-end">
+          <StreakFlame streak={streak} size="sm" />
+        </header>
+        <CurtainReveal open={false} label={KITSH_CURTAIN_LABEL}>
+          <div className="min-h-[40vh]" />
+        </CurtainReveal>
+      </div>
+    );
   }
 
   const results = computeResults(question);
-  const hasVoted = phase === "voted-in-time" || phase === "expired-voted-late";
-  const curtainVisible = curtainOpen || hasVoted || phase === "expired-no-vote";
+  const hasVoted = phase === "voted-in-time";
+  const curtainVisible = curtainOpen || hasVoted;
 
   return (
     <div className="flex flex-1 flex-col items-center px-4 pt-8">
@@ -87,7 +96,7 @@ export function DailyPollCard() {
         <StreakFlame streak={streak} size="sm" celebrate={streakDelta === 1} />
       </header>
 
-      <CurtainReveal open={curtainVisible} label="ON AIR">
+      <CurtainReveal open={curtainVisible} label={KITSH_CURTAIN_LABEL}>
         <div className="flex flex-col items-center gap-6 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-muted-foreground">
             {question.category ?? "Question du jour"}
@@ -102,7 +111,7 @@ export function DailyPollCard() {
             {question.text}
           </motion.h1>
 
-          {!hasVoted && phase !== "expired-no-vote" && (
+          {!hasVoted && (
             <>
               <CountdownShowTV expiresAt={question.expires_at} />
               <VoteButtons
@@ -115,8 +124,6 @@ export function DailyPollCard() {
             </>
           )}
 
-          {phase === "expired-no-vote" && <MissedWindow />}
-
           <AnimatePresence>
             {hasVoted && (
               <motion.div
@@ -125,48 +132,15 @@ export function DailyPollCard() {
                 transition={{ delay: 0.2 }}
                 className="flex w-full flex-col items-center gap-4"
               >
-                {phase === "voted-in-time" ? (
-                  <Badge className="gap-1.5 border-none bg-emerald-500 text-emerald-950">
-                    <Tv2 className="h-3.5 w-3.5" /> Vote validé dans les temps · flamme +1
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="gap-1.5">
-                    <ZapOff className="h-3.5 w-3.5" /> Voté hors délai · flamme non incrémentée
-                  </Badge>
-                )}
+                <Badge className="gap-1.5 border-none bg-emerald-500 text-emerald-950">
+                  <Tv2 className="h-3.5 w-3.5" /> Vote validé dans les temps · flamme +1
+                </Badge>
                 <TrendChart results={results} options={question.options} myVote={myVote} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </CurtainReveal>
-    </div>
-  );
-}
-
-function WaitingRoom({ streak }: { streak: number }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <StreakFlame streak={streak} size="lg" />
-      <div className="space-y-2">
-        <h1 className="font-display text-3xl tracking-wide">LE SHOW N&apos;A PAS ENCORE COMMENCÉ</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Une notification arrivera à un horaire surprise aujourd&apos;hui. Reste connecté, tu auras 5 minutes
-          pour voter et garder ta flamme allumée.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MissedWindow() {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <ZapOff className="h-10 w-10 text-destructive" />
-      <p className="max-w-xs text-sm text-muted-foreground">
-        Le temps imparti est écoulé et tu n&apos;as pas voté. Ta flamme est retombée à zéro. Reviens demain pour la
-        prochaine question !
-      </p>
     </div>
   );
 }

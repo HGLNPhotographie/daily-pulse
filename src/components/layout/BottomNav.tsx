@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Flame, Lightbulb, Tv, User } from "lucide-react";
+import { Flame, Tv, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/", label: "Le Show", icon: Tv },
   { href: "/streak", label: "Flamme", icon: Flame },
-  { href: "/suggestions", label: "Idées", icon: Lightbulb },
   { href: "/compte", label: "Compte", icon: User },
 ];
 

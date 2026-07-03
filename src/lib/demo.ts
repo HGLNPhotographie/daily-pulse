@@ -55,8 +55,18 @@ export function getOrCreateDemoQuestion(): Question {
   };
 }
 
-export async function fetchDemoQuestion(): Promise<Question> {
-  return demoFetch<Question>("/api/demo/question");
+export async function fetchDemoQuestion(): Promise<Question | null> {
+  try {
+    return await demoFetch<Question>("/api/demo/question");
+  } catch (e) {
+    if (
+      e instanceof Error &&
+      (e.message.includes("404") || e.message.includes("Aucune question"))
+    ) {
+      return null;
+    }
+    throw e;
+  }
 }
 
 export function getDemoVote(): { choice: VoteChoice; isInTime: boolean } | null {
@@ -101,7 +111,7 @@ export async function castDemoVote(choice: VoteChoice): Promise<{ isInTime: bool
 /**
  * Polling serveur + événements locaux (même onglet) pour le "direct" démo.
  */
-export function subscribeDemoLiveActivity(onUpdate: (q: Question) => void): () => void {
+export function subscribeDemoLiveActivity(onUpdate: (q: Question | null) => void): () => void {
   let active = true;
 
   const poll = async () => {
@@ -110,14 +120,17 @@ export function subscribeDemoLiveActivity(onUpdate: (q: Question) => void): () =
       const question = await fetchDemoQuestion();
       onUpdate(question);
     } catch {
-      // ignore erreurs réseau ponctuelles
+      onUpdate(null);
     }
   };
 
   void poll();
   const interval = setInterval(() => void poll(), 1500);
 
-  const handler = (e: Event) => onUpdate((e as CustomEvent<Question>).detail);
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<Question | null>).detail;
+    onUpdate(detail ?? null);
+  };
   window.addEventListener(EVENT, handler);
 
   return () => {
@@ -152,13 +165,13 @@ export async function deleteDemoQuestion(questionId: string): Promise<void> {
     body: JSON.stringify({ id: questionId }),
   });
   window.localStorage.removeItem(VOTE_KEY);
-  window.dispatchEvent(new CustomEvent(EVENT));
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: null }));
 }
 
 export async function resetDemoQuestionHistory(): Promise<void> {
   await demoFetch<{ ok: boolean }>("/api/demo/history", { method: "DELETE" });
   window.localStorage.removeItem(VOTE_KEY);
-  window.dispatchEvent(new CustomEvent(EVENT));
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: null }));
 }
 
 export async function fetchDemoQuestionHistory(): Promise<Question[]> {

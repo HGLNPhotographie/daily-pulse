@@ -21,14 +21,14 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Pulse — Le Rendez-vous Quotidien",
+  title: "Kitsh — Le Rendez-vous Quotidien",
   description:
     "Une question par jour, 5 minutes pour voter. Pour, Contre, Neutre — garde ta flamme allumée.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Daily Pulse",
+    title: "Kitsh",
   },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],

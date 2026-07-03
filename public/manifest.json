@@ -1,6 +1,6 @@
 {
-  "name": "Daily Pulse — Le Rendez-vous Quotidien",
-  "short_name": "Daily Pulse",
+  "name": "Kitsh — Le Rendez-vous Quotidien",
+  "short_name": "Kitsh",
   "description": "Chaque jour, une question, 5 minutes pour répondre. Ne casse pas ta flamme.",
   "start_url": "/",
   "scope": "/",

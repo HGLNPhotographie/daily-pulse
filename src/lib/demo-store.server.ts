@@ -30,11 +30,18 @@ function createDefaultQuestion(): Question {
   };
 }
 
+export function getActiveDemoStoreQuestion(): Question | null {
+  if (!currentQuestion) return null;
+  const now = Date.now();
+  const active = new Date(currentQuestion.active_at).getTime();
+  const expires = new Date(currentQuestion.expires_at).getTime();
+  if (now < active || now >= expires) return null;
+  return currentQuestion;
+}
+
 export function getOrCreateDemoStoreQuestion(): Question {
-  if (currentQuestion) {
-    const age = Date.now() - new Date(currentQuestion.active_at).getTime();
-    if (age < 20 * 60 * 1000) return currentQuestion;
-  }
+  const active = getActiveDemoStoreQuestion();
+  if (active) return active;
   currentQuestion = createDefaultQuestion();
   pushHistory(currentQuestion);
   return currentQuestion;
@@ -87,11 +94,7 @@ export function deleteDemoStoreQuestion(id: string): boolean {
   const wasCurrent = currentQuestion?.id === id;
   questionHistory = questionHistory.filter((q) => q.id !== id);
   if (wasCurrent) {
-    currentQuestion = questionHistory[0] ?? null;
-    if (!currentQuestion) {
-      currentQuestion = createDefaultQuestion();
-      pushHistory(currentQuestion);
-    }
+    currentQuestion = null;
   }
   return true;
 }
@@ -99,7 +102,6 @@ export function deleteDemoStoreQuestion(id: string): boolean {
 export function resetDemoStoreQuestions(): void {
   questionHistory = [];
   currentQuestion = null;
-  getOrCreateDemoStoreQuestion();
 }
 
 export function getDemoStoreHistory(): Question[] {
