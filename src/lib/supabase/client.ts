@@ -36,24 +36,48 @@ export function resetSupabaseBrowserClient() {
 
 /**
  * Garantit une session authentifiée (anonyme) avant vote / suggestion.
- * Lève une erreur explicite si Anonymous Sign-Ins est désactivé dans Supabase.
+ * Provisionne aussi la ligne public.users (profil invité).
  */
 export async function ensureVoterSession(supabase: SupabaseClient): Promise<Session> {
-  const {
+  const provisionProfile = async () => {
+    const { error } = await supabase.rpc("ensure_user_profile");
+    if (!error) return true;
+    const msg = error.message ?? "";
+    const stale =
+      msg.includes("foreign key") ||
+      msg.includes("violates foreign key") ||
+      error.code === "23503" ||
+      msg.includes("USER_PROFILE_MISSING");
+    return !stale;
+  };
+
+  let {
     data: { session },
   } = await supabase.auth.getSession();
-  if (session?.access_token) return session;
 
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    throw new Error(
-      `Connexion anonyme refusée : ${error.message}. Vérifie dans Supabase → Authentication → Providers que « Anonymous Sign-Ins » est activé.`
-    );
+  if (session?.access_token) {
+    const profileOk = await provisionProfile();
+    if (!profileOk) {
+      await supabase.auth.signOut();
+      session = null;
+    }
   }
-  if (!data.session?.access_token) {
-    throw new Error(
-      "Session introuvable après connexion anonyme. Active « Anonymous Sign-Ins » dans Supabase (Authentication → Providers)."
-    );
+
+  if (!session?.access_token) {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      throw new Error(
+        `Connexion anonyme refusée : ${error.message}. Vérifie dans Supabase → Authentication → Providers que « Anonymous Sign-Ins » est activé.`
+      );
+    }
+    if (!data.session?.access_token) {
+      throw new Error(
+        "Session introuvable après connexion anonyme. Active « Anonymous Sign-Ins » dans Supabase (Authentication → Providers)."
+      );
+    }
+    session = data.session;
+    await provisionProfile();
   }
-  return data.session;
+
+  return session;
 }

@@ -27,6 +27,9 @@ const CURTAIN_CLOSE_MS = 950;
 function formatVoteError(e: unknown): string {
   if (e && typeof e === "object") {
     const err = e as { message?: string; details?: string; hint?: string; code?: string };
+    if (err.message?.includes("USER_PROFILE_MISSING")) {
+      return "Profil introuvable. Rafraîchis la page pour obtenir une nouvelle session invitée.";
+    }
     if (err.message?.includes("AUTH_REQUIRED")) {
       return "Tu n'es pas connecté. Rafraîchis la page, ou active « Anonymous Sign-Ins » dans Supabase (Authentication → Providers).";
     }
