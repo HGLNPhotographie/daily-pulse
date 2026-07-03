@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { BellRing, MessageSquareText, Radio, Users } from "lucide-react";
+import { BellRing, Radio, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QuestionForm, type QuestionFormValues } from "@/components/admin/QuestionForm";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { fetchDemoQuestionHistory, fetchDemoSuggestions, getDemoUsers } from "@/lib/demo";
+import { fetchDemoQuestionHistory, getDemoUsers } from "@/lib/demo";
 import { publishQuestion, scheduleQuestion, sendNotificationNow } from "@/lib/admin-api";
 import { formatResultsSummary } from "@/lib/question-options";
 import { useNowTick } from "@/hooks/useNowTick";
@@ -17,37 +17,32 @@ import type { Question } from "@/types";
 
 interface Stats {
   totalUsers: number;
-  pendingSuggestions: number;
 }
 
 export default function AdminDashboardPage() {
   const [question, setQuestion] = useState<Question | null>(null);
-  const [stats, setStats] = useState<Stats>({ totalUsers: 0, pendingSuggestions: 0 });
+  const [stats, setStats] = useState<Stats>({ totalUsers: 0 });
   const [isNotifying, setIsNotifying] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      const [history, suggestions] = await Promise.all([fetchDemoQuestionHistory(), fetchDemoSuggestions()]);
+      const [history] = await Promise.all([fetchDemoQuestionHistory()]);
       const [current] = history;
       setQuestion(current ?? null);
-      setStats({
-        totalUsers: getDemoUsers().length,
-        pendingSuggestions: suggestions.filter((s) => s.status === "pending").length,
-      });
+      setStats({ totalUsers: getDemoUsers().length });
       return;
     }
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const [{ data: q }, { count: usersCount }, { count: pendingCount }] = await Promise.all([
+    const [{ data: q }, { count: usersCount }] = await Promise.all([
       supabase.from("questions").select("*").order("active_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("users").select("*", { count: "exact", head: true }),
-      supabase.from("suggestions").select("*", { count: "exact", head: true }).eq("status", "pending"),
     ]);
 
     setQuestion((q as Question) ?? null);
-    setStats({ totalUsers: usersCount ?? 0, pendingSuggestions: pendingCount ?? 0 });
+    setStats({ totalUsers: usersCount ?? 0 });
   }, []);
 
   useEffect(() => {
@@ -101,9 +96,8 @@ export default function AdminDashboardPage() {
         <p className="text-sm text-muted-foreground">Pilote le Rendez-vous Quotidien en direct.</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard icon={<Users className="h-4 w-4" />} label="Utilisateurs" value={stats.totalUsers} />
-        <StatCard icon={<MessageSquareText className="h-4 w-4" />} label="Suggestions en attente" value={stats.pendingSuggestions} />
         <StatCard icon={<Radio className="h-4 w-4" />} label="Votes sur la question live" value={results?.total ?? 0} />
       </div>
 

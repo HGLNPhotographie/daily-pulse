@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Search, ShieldCheck, ShieldOff } from "lucide-react";
+import { Ban, Search, ShieldCheck, ShieldOff, Trash2, UserX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { StreakFlame } from "@/components/flame/StreakFlame";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { deleteUserAccount, setUserBanned } from "@/lib/admin-api";
 import { getDemoUsers } from "@/lib/demo";
+import { useUserSession } from "@/hooks/useUserSession";
 import type { UserProfile } from "@/types";
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useUserSession();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -26,25 +30,82 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    // Chargement initial depuis Supabase/localStorage (indisponibles avant le
-    // montage) : pattern de synchronisation avec un système externe.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 
-  const toggleAdmin = async (user: UserProfile) => {
+  const toggleAdmin = async (target: UserProfile) => {
     if (!isSupabaseConfigured) {
-      toast.info("Indisponible en mode démo : branche Supabase pour gérer les droits admin.");
+      toast.info("Indisponible en mode démo.");
       return;
     }
-    setBusyId(user.id);
+    if (target.id === currentUser?.id) {
+      toast.error("Tu ne peux pas modifier tes propres droits ici.");
+      return;
+    }
+    setBusyId(target.id);
     const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase!.from("users").update({ is_admin: !user.is_admin }).eq("id", user.id);
+    const { error } = await supabase!.from("users").update({ is_admin: !target.is_admin }).eq("id", target.id);
     setBusyId(null);
     if (error) {
       toast.error(error.message);
       return;
     }
+    toast.success(target.is_admin ? "Droits admin retirés." : "Promu administrateur.");
+    await refresh();
+  };
+
+  const toggleBan = async (target: UserProfile) => {
+    if (target.is_admin) {
+      toast.error("Impossible de bannir un administrateur.");
+      return;
+    }
+    if (target.id === currentUser?.id) {
+      toast.error("Tu ne peux pas te bannir toi-même.");
+      return;
+    }
+    const nextBanned = !target.is_banned;
+    const msg = nextBanned
+      ? `Bannir ${target.pseudo ?? target.email ?? "cet utilisateur"} ? Il ne pourra plus voter.`
+      : `Débannir ${target.pseudo ?? target.email ?? "cet utilisateur"} ?`;
+    if (!window.confirm(msg)) return;
+
+    setBusyId(target.id);
+    const result = await setUserBanned(target.id, nextBanned);
+    setBusyId(null);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(nextBanned ? "Utilisateur banni." : "Utilisateur débanni.");
+    await refresh();
+  };
+
+  const handleDelete = async (target: UserProfile) => {
+    if (target.is_admin) {
+      toast.error("Impossible de supprimer un administrateur.");
+      return;
+    }
+    if (target.id === currentUser?.id) {
+      toast.error("Tu ne peux pas supprimer ton propre compte.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Supprimer définitivement ${target.pseudo ?? target.email ?? "cet utilisateur"} ?\nVotes, profil et compte seront effacés. Irréversible.`
+      )
+    ) {
+      return;
+    }
+
+    setBusyId(target.id);
+    const result = await deleteUserAccount(target.id);
+    setBusyId(null);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Compte supprimé.");
     await refresh();
   };
 
@@ -58,7 +119,9 @@ export default function AdminUsersPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 pb-16">
       <header>
         <h1 className="font-display text-3xl tracking-wide text-glow-cyan">UTILISATEURS</h1>
-        <p className="text-sm text-muted-foreground">{users.length} profil{users.length > 1 ? "s" : ""} enregistré{users.length > 1 ? "s" : ""}.</p>
+        <p className="text-sm text-muted-foreground">
+          {users.length} profil{users.length > 1 ? "s" : ""} · bannir ou supprimer un compte abusif.
+        </p>
       </header>
 
       <div className="relative">
@@ -72,55 +135,98 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.map((u, i) => (
-          <motion.div
-            key={u.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.02 }}
-            className="neo-border-sm flex items-center gap-4 rounded-2xl bg-card/70 p-3"
-          >
-            <StreakFlame streak={u.current_streak} size="sm" showNumber={false} />
+        {filtered.map((u, i) => {
+          const isSelf = u.id === currentUser?.id;
+          const busy = busyId === u.id;
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate font-semibold">{u.pseudo ?? "Anonyme"}</p>
-                {u.is_admin && (
-                  <Badge className="gap-1 border-none bg-primary/20 text-primary">
-                    <ShieldCheck className="h-3 w-3" /> Admin
-                  </Badge>
+          return (
+            <motion.div
+              key={u.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.02 }}
+              className="neo-border-sm flex flex-col gap-3 rounded-2xl bg-card/70 p-3 sm:flex-row sm:items-center"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-4">
+                <StreakFlame streak={u.current_streak} size="sm" showNumber={false} />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate font-semibold">{u.pseudo ?? "Anonyme"}</p>
+                    {u.is_admin && (
+                      <Badge className="gap-1 border-none bg-primary/20 text-primary">
+                        <ShieldCheck className="h-3 w-3" /> Admin
+                      </Badge>
+                    )}
+                    {u.is_banned && (
+                      <Badge className="gap-1 border-none bg-destructive/20 text-destructive">
+                        <Ban className="h-3 w-3" /> Banni
+                      </Badge>
+                    )}
+                    {isSelf && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Toi
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">{u.email ?? "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                <div className="hidden gap-4 text-center text-xs text-muted-foreground sm:flex">
+                  <div>
+                    <p className="font-display text-lg text-foreground">{u.current_streak}</p>
+                    <p>Streak</p>
+                  </div>
+                  <div>
+                    <p className="font-display text-lg text-foreground">{u.highest_streak}</p>
+                    <p>Record</p>
+                  </div>
+                </div>
+
+                {!u.is_admin && !isSelf && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void toggleBan(u)}
+                      className="gap-1.5"
+                    >
+                      {u.is_banned ? <UserX className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                      {u.is_banned ? "Débannir" : "Bannir"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void handleDelete(u)}
+                      className="gap-1.5 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Supprimer
+                    </Button>
+                  </>
+                )}
+
+                {!isSelf && (
+                  <button
+                    type="button"
+                    onClick={() => void toggleAdmin(u)}
+                    disabled={busy}
+                    title={u.is_admin ? "Retirer les droits admin" : "Promouvoir admin"}
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-white/5 hover:text-primary"
+                  >
+                    {u.is_admin ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                  </button>
                 )}
               </div>
-              <p className="truncate text-xs text-muted-foreground">{u.email ?? "—"}</p>
-            </div>
-
-            <div className="hidden shrink-0 gap-4 text-center text-xs text-muted-foreground sm:flex">
-              <div>
-                <p className="font-display text-lg text-foreground">{u.current_streak}</p>
-                <p>Streak</p>
-              </div>
-              <div>
-                <p className="font-display text-lg text-foreground">{u.highest_streak}</p>
-                <p>Record</p>
-              </div>
-              <div>
-                <p className="font-display text-sm text-foreground">
-                  {u.last_vote_date ? new Date(u.last_vote_date).toLocaleDateString("fr-FR") : "—"}
-                </p>
-                <p>Dernier vote</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => toggleAdmin(u)}
-              disabled={busyId === u.id}
-              title={u.is_admin ? "Retirer les droits admin" : "Promouvoir admin"}
-              className="shrink-0 rounded-xl p-2 text-muted-foreground hover:bg-white/5 hover:text-primary"
-            >
-              {u.is_admin ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-            </button>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
         {filtered.length === 0 && <p className="text-sm text-muted-foreground">Aucun utilisateur trouvé.</p>}
       </div>
     </div>

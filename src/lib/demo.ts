@@ -226,6 +226,8 @@ export function getDemoUsers(): UserProfile[] {
       highest_streak: Math.max(streak, (seed * 3) % 60),
       last_vote_date: new Date(now - (seed % 3) * 86_400_000).toISOString(),
       is_admin: i === 0,
+      is_banned: false,
+      banned_at: null,
       created_at: new Date(now - (i + 1) * 7 * 86_400_000).toISOString(),
     };
   });

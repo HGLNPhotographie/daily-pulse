@@ -10,6 +10,7 @@ import {
   signUpWithEmail,
 } from "@/lib/auth/client-auth";
 import { getSupabaseBrowserClient, ensureVoterSession, isSupabaseConfigured } from "@/lib/supabase/client";
+import { signOutIfBanned } from "@/lib/user-ban";
 
 export type UserSessionStatus = "loading" | "demo" | "anonymous" | "signed-in";
 
@@ -47,8 +48,16 @@ export function useUserSession(): UseUserSessionResult {
     if (!supabase) return null;
     try {
       const session = await ensureVoterSession(supabase);
+      if (session?.user) {
+        const banned = await signOutIfBanned(supabase, session.user.id);
+        if (banned) {
+          setUser(null);
+          setStatus("loading");
+          return null;
+        }
+      }
       syncFromSession(session);
-      return session.user;
+      return session?.user ?? null;
     } catch {
       setStatus("demo");
       return null;

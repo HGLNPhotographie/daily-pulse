@@ -147,3 +147,40 @@ export async function resetQuestionHistory(): Promise<{ error?: string; deleted?
   if (error) return { error: error.message };
   return { deleted: data?.length ?? 0 };
 }
+
+async function adminUserRequest(userId: string, init: RequestInit): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { error: "Indisponible en mode démo." };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  const {
+    data: { session },
+  } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+
+  if (!session) return { error: "Session admin manquante." };
+
+  const res = await fetch(`/api/admin/users/${userId}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      ...init.headers,
+    },
+  });
+
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) return { error: data.error || "Action impossible." };
+  return {};
+}
+
+export async function setUserBanned(userId: string, banned: boolean): Promise<{ error?: string }> {
+  return adminUserRequest(userId, {
+    method: "PATCH",
+    body: JSON.stringify({ banned }),
+  });
+}
+
+export async function deleteUserAccount(userId: string): Promise<{ error?: string }> {
+  return adminUserRequest(userId, { method: "DELETE" });
+}

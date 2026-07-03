@@ -28,6 +28,9 @@ function formatVoteError(e: unknown): string {
     if (err.message?.includes("AUTH_REQUIRED")) {
       return "Tu n'es pas connecté. Rafraîchis la page, ou active « Anonymous Sign-Ins » dans Supabase (Authentication → Providers).";
     }
+    if (err.message?.includes("USER_BANNED")) {
+      return "Ton compte a été suspendu. Contacte l'équipe si tu penses qu'il s'agit d'une erreur.";
+    }
     const parts = [err.message, err.details, err.hint].filter(Boolean);
     if (parts.length > 0) return parts.join(" — ");
   }

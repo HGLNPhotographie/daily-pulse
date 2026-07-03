@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, MessageSquareText, Radio, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, Radio, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/questions", label: "Questions", icon: Radio, exact: false },
-  { href: "/admin/suggestions", label: "Suggestions", icon: MessageSquareText, exact: false },
   { href: "/admin/users", label: "Utilisateurs", icon: Users, exact: false },
 ];
 

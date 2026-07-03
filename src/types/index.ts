@@ -44,6 +44,8 @@ export interface UserProfile {
   highest_streak: number;
   last_vote_date: string | null;
   is_admin: boolean;
+  is_banned?: boolean;
+  banned_at?: string | null;
   created_at: string;
 }
 
