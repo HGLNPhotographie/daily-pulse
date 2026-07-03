@@ -5,6 +5,7 @@ import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister
 import { AuthBootstrap } from "@/components/layout/AuthBootstrap";
 import { CapacitorBootstrap } from "@/components/layout/CapacitorBootstrap";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { AdminDashboardBar } from "@/components/layout/AdminDashboardBar";
 import { AppProviders } from "@/components/layout/AppProviders";
 import "./globals.css";
 
@@ -64,6 +65,7 @@ export default function RootLayout({
           </svg>
         </div>
         <AppProviders>
+          <AdminDashboardBar />
           <main className="relative z-10 flex flex-1 flex-col pb-24">{children}</main>
         </AppProviders>
         <BottomNav />
