@@ -46,8 +46,7 @@ export async function ensureVoterSession(supabase: SupabaseClient): Promise<Sess
     const stale =
       msg.includes("foreign key") ||
       msg.includes("violates foreign key") ||
-      error.code === "23503" ||
-      msg.includes("USER_PROFILE_MISSING");
+      error.code === "23503";
     return !stale;
   };
 

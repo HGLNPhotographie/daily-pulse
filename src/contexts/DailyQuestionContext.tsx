@@ -77,6 +77,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   const [now, setNow] = useState(() => Date.now());
   const mountedRef = useRef(true);
   const currentQuestionIdRef = useRef<string | null>(null);
+  const myVoteRef = useRef<VoteChoice | null>(null);
   const closingRef = useRef(false);
 
   useEffect(() => {
@@ -89,6 +90,10 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   useEffect(() => {
     currentQuestionIdRef.current = question?.id ?? null;
   }, [question]);
+
+  useEffect(() => {
+    myVoteRef.current = myVote;
+  }, [myVote]);
 
   const clearQuestionState = useCallback(() => {
     closingRef.current = false;
@@ -121,9 +126,10 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   );
 
   const applyLiveQuestion = useCallback((updated: Question) => {
-    if (!mountedRef.current || !isQuestionLiveForUsers(updated)) return;
+    if (!mountedRef.current) return;
     const normalized = withQuestionOptions(updated);
     if (!currentQuestionIdRef.current) {
+      if (!isQuestionLiveForUsers(updated)) return;
       setQuestion(normalized);
       return;
     }
@@ -131,6 +137,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       setQuestion(normalized);
       return;
     }
+    if (!isQuestionLiveForUsers(updated)) return;
     setIncomingQuestion(normalized);
   }, []);
 
@@ -139,13 +146,14 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     return () => clearInterval(id);
   }, []);
 
-  // Expire ou hors fenêtre → refermer le rideau puis masquer la question.
+  // Expire sans vote → refermer le rideau. Après un vote, on garde les résultats
+  // visibles jusqu'à la prochaine question.
   useEffect(() => {
-    if (!question || isCurtainClosing) return;
+    if (!question || isCurtainClosing || myVote) return;
     if (!isQuestionLiveForUsers(question, now)) {
       closeCurtainThenClear();
     }
-  }, [now, question, isCurtainClosing, closeCurtainThenClear]);
+  }, [now, question, isCurtainClosing, myVote, closeCurtainThenClear]);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -199,7 +207,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       }
       clearDemoVoteForQuestion(updated.id);
       if (!isQuestionLiveForUsers(updated)) {
-        if (prevId === updated.id && !isCurtainClosing) closeCurtainThenClear();
+        if (prevId === updated.id && !closingRef.current && !myVoteRef.current) closeCurtainThenClear();
         return;
       }
       applyLiveQuestion(updated);
@@ -209,7 +217,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       cancelled = true;
       unsubscribe();
     };
-  }, [applyLiveQuestion, clearQuestionState, closeCurtainThenClear, isCurtainClosing]);
+  }, [applyLiveQuestion, clearQuestionState, closeCurtainThenClear]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -236,7 +244,10 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       if (cancelled) return;
 
       const nowIso = new Date().toISOString();
-      const { data, error: qError } = await supabase
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes?.user?.id;
+
+      const { data: liveQuestion, error: qError } = await supabase
         .from("questions")
         .select("*")
         .lte("active_at", nowIso)
@@ -248,16 +259,41 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       if (cancelled) return;
       if (qError) setError(qError.message);
 
-      if (data && mountedRef.current && isQuestionLiveForUsers(data as Question)) {
-        setQuestion(withQuestionOptions(data as Question));
+      let resolvedQuestion = liveQuestion as Question | null;
 
-        const { data: userRes } = await supabase.auth.getUser();
-        const uid = userRes?.user?.id;
-        if (uid) {
+      if (!resolvedQuestion && uid) {
+        const { data: lastVote } = await supabase
+          .from("votes")
+          .select("choice, is_in_time, question_id")
+          .eq("user_id", uid)
+          .order("voted_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastVote?.question_id) {
+          const { data: votedQuestion } = await supabase
+            .from("questions")
+            .select("*")
+            .eq("id", lastVote.question_id)
+            .maybeSingle();
+
+          if (votedQuestion && mountedRef.current) {
+            resolvedQuestion = votedQuestion as Question;
+            setMyVote(lastVote.choice as VoteChoice);
+            setStreakDelta(lastVote.is_in_time ? 1 : 0);
+            setCurtainOpen(true);
+          }
+        }
+      }
+
+      if (resolvedQuestion && mountedRef.current) {
+        setQuestion(withQuestionOptions(resolvedQuestion));
+
+        if (uid && liveQuestion && liveQuestion.id === resolvedQuestion.id) {
           const { data: existingVote } = await supabase
             .from("votes")
             .select("choice, is_in_time")
-            .eq("question_id", data.id)
+            .eq("question_id", resolvedQuestion.id)
             .eq("user_id", uid)
             .maybeSingle();
           if (!cancelled && existingVote && mountedRef.current) {
@@ -266,7 +302,6 @@ function useDailyQuestionState(): UseDailyQuestionResult {
             setCurtainOpen(true);
           }
         }
-
       } else if (mountedRef.current) {
         clearQuestionState();
       }
@@ -346,6 +381,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         setQuestion((q) => (q ? incrementQuestionTotals(q, choice) : q));
         setMyVote(choice);
         setStreakDelta(isInTime ? 1 : 0);
+        setCurtainOpen(true);
 
         const { data: refreshed } = await supabase
           .from("questions")
@@ -374,11 +410,10 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       if (myVote) return "voted-in-time";
       return curtainOpen ? "voting" : "curtain";
     }
+    if (myVote) return "voted-in-time";
     if (!isQuestionLiveForUsers(question, now)) return "no-question";
 
     const expires = new Date(question.expires_at).getTime();
-
-    if (myVote) return now < expires || streakDelta === 1 ? "voted-in-time" : "no-question";
     if (now >= expires) return "no-question";
     return curtainOpen ? "voting" : "curtain";
   })();

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { BellRing, Clock3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PollResultsSummary } from "@/components/admin/PollResultsSummary";
 import { QuestionForm, type QuestionFormValues } from "@/components/admin/QuestionForm";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchDemoQuestionHistory } from "@/lib/demo";
@@ -17,7 +18,9 @@ import {
   sendNotificationNow,
 } from "@/lib/admin-api";
 import { formatResultsSummary } from "@/lib/question-options";
+import { getQuestionAdminState } from "@/lib/question-active";
 import { useNowTick } from "@/hooks/useNowTick";
+import { computeResults } from "@/types";
 import type { Question } from "@/types";
 
 export default function AdminQuestionsPage() {
@@ -146,13 +149,14 @@ export default function AdminQuestionsPage() {
 
         <div className="space-y-3">
           {questions.map((q, i) => {
-            const active = q.active_at && new Date(q.active_at).getTime() <= now;
-            const expired = q.expires_at && new Date(q.expires_at).getTime() <= now;
-            const state: { label: string; cls: string } = !active
-              ? { label: "Planifiée", cls: "bg-sky-500/20 text-sky-300" }
-              : !expired
-                ? { label: "En direct", cls: "bg-red-500/20 text-red-300" }
-                : { label: "Terminée", cls: "bg-white/10 text-muted-foreground" };
+            const state = getQuestionAdminState(q, now);
+            const stateBadge: { label: string; cls: string } =
+              state === "scheduled"
+                ? { label: "Planifiée", cls: "bg-sky-500/20 text-sky-300" }
+                : state === "live"
+                  ? { label: "En direct", cls: "bg-red-500/20 text-red-300" }
+                  : { label: "Terminée", cls: "bg-white/10 text-muted-foreground" };
+            const results = computeResults(q);
 
             return (
               <motion.div
@@ -167,7 +171,7 @@ export default function AdminQuestionsPage() {
                     <p className="text-xs uppercase tracking-widest text-muted-foreground">{q.category}</p>
                     <p className="font-display text-lg leading-snug">{q.text}</p>
                   </div>
-                  <Badge className={`shrink-0 border-none ${state.cls}`}>{state.label}</Badge>
+                  <Badge className={`shrink-0 border-none ${stateBadge.cls}`}>{stateBadge.label}</Badge>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -175,11 +179,20 @@ export default function AdminQuestionsPage() {
                     <Clock3 className="h-3.5 w-3.5" />
                     {new Date(q.active_at).toLocaleString("fr-FR")}
                   </span>
+                  <span>→ {new Date(q.expires_at).toLocaleString("fr-FR")}</span>
                   <span>{formatResultsSummary(q)}</span>
+                  <span>{results.total} vote{results.total > 1 ? "s" : ""}</span>
                 </div>
 
+                {(state === "ended" || state === "live") && (
+                  <PollResultsSummary
+                    question={q}
+                    title={state === "live" ? "RÉSULTATS EN DIRECT" : "RÉSUMÉ DU SONDAGE"}
+                  />
+                )}
+
                 <div className="flex flex-wrap gap-2">
-                  {active && !expired && (
+                  {state === "live" && (
                     <Button
                       size="sm"
                       variant="outline"

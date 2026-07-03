@@ -12,9 +12,10 @@ interface TrendChartProps {
   results: QuestionResults;
   options?: QuestionOption[];
   myVote?: VoteChoice | null;
+  title?: string;
 }
 
-export function TrendChart({ results, options: optionsProp, myVote }: TrendChartProps) {
+export function TrendChart({ results, options: optionsProp, myVote, title = "RÉSULTATS EN DIRECT" }: TrendChartProps) {
   const options = normalizeQuestionOptions(optionsProp);
 
   const pctByChoice: Record<VoteChoice, number> = {
@@ -38,7 +39,7 @@ export function TrendChart({ results, options: optionsProp, myVote }: TrendChart
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="flex items-baseline justify-between">
-        <h3 className="font-display text-2xl tracking-wide text-glow-cyan">RÉSULTATS EN DIRECT</h3>
+        <h3 className="font-display text-2xl tracking-wide text-glow-cyan">{title}</h3>
         <AnimatedTotal total={results.total} />
       </div>
 

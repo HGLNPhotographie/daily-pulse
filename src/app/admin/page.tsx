@@ -6,11 +6,16 @@ import { toast } from "sonner";
 import { BellRing, Radio, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PollResultsSummary } from "@/components/admin/PollResultsSummary";
 import { QuestionForm, type QuestionFormValues } from "@/components/admin/QuestionForm";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchDemoQuestionHistory, getDemoUsers } from "@/lib/demo";
 import { publishQuestion, scheduleQuestion, sendNotificationNow } from "@/lib/admin-api";
-import { formatResultsSummary } from "@/lib/question-options";
+import {
+  findLastEndedQuestion,
+  findLiveQuestion,
+  getQuestionAdminState,
+} from "@/lib/question-active";
 import { useNowTick } from "@/hooks/useNowTick";
 import { computeResults } from "@/types";
 import type { Question } from "@/types";
@@ -20,15 +25,14 @@ interface Stats {
 }
 
 export default function AdminDashboardPage() {
-  const [question, setQuestion] = useState<Question | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [stats, setStats] = useState<Stats>({ totalUsers: 0 });
   const [isNotifying, setIsNotifying] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      const [history] = await Promise.all([fetchDemoQuestionHistory()]);
-      const [current] = history;
-      setQuestion(current ?? null);
+      const history = await fetchDemoQuestionHistory();
+      setQuestions(history);
       setStats({ totalUsers: getDemoUsers().length });
       return;
     }
@@ -36,18 +40,16 @@ export default function AdminDashboardPage() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const [{ data: q }, { count: usersCount }] = await Promise.all([
-      supabase.from("questions").select("*").order("active_at", { ascending: false }).limit(1).maybeSingle(),
+    const [{ data }, { count: usersCount }] = await Promise.all([
+      supabase.from("questions").select("*").order("active_at", { ascending: false }).limit(30),
       supabase.from("users").select("*", { count: "exact", head: true }),
     ]);
 
-    setQuestion((q as Question) ?? null);
+    setQuestions((data as Question[]) ?? []);
     setStats({ totalUsers: usersCount ?? 0 });
   }, []);
 
   useEffect(() => {
-    // Chargement initial depuis Supabase/localStorage (indisponibles avant le
-    // montage) : pattern de synchronisation avec un système externe.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
@@ -71,11 +73,11 @@ export default function AdminDashboardPage() {
     await refresh();
   };
 
-  const handleNotifyNow = async () => {
+  const handleNotifyNow = async (question: Question) => {
     setIsNotifying(true);
     const result = await sendNotificationNow({
       title: "📺 C'est l'heure du Rendez-vous !",
-      body: question ? question.text : "La question du jour vient de tomber. Tu as 5 minutes pour voter.",
+      body: question.text,
     });
     setIsNotifying(false);
     if (!result.ok) {
@@ -86,8 +88,11 @@ export default function AdminDashboardPage() {
   };
 
   const now = useNowTick();
-  const results = question ? computeResults(question) : null;
-  const isLive = question ? now < new Date(question.expires_at).getTime() : false;
+  const liveQuestion = findLiveQuestion(questions, now);
+  const lastEndedQuestion = findLastEndedQuestion(questions, now);
+  const summaryQuestion = liveQuestion ?? lastEndedQuestion;
+  const summaryResults = summaryQuestion ? computeResults(summaryQuestion) : null;
+  const upcomingCount = questions.filter((q) => getQuestionAdminState(q, now) === "scheduled").length;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 pb-16">
@@ -98,48 +103,109 @@ export default function AdminDashboardPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard icon={<Users className="h-4 w-4" />} label="Utilisateurs" value={stats.totalUsers} />
-        <StatCard icon={<Radio className="h-4 w-4" />} label="Votes sur la question live" value={results?.total ?? 0} />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={liveQuestion ? "Votes en direct" : "Dernier sondage"}
+          value={summaryResults?.total ?? 0}
+        />
       </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl tracking-wide">QUESTION EN COURS</h2>
-          {isLive && (
+      {liveQuestion && (
+        <QuestionSection
+          title="EN DIRECT"
+          badge={
             <Badge className="gap-1.5 border-none bg-red-600/90 text-white">
               <Radio className="h-3.5 w-3.5 animate-pulse" /> EN DIRECT
             </Badge>
-          )}
-        </div>
+          }
+          question={liveQuestion}
+          resultsTitle="RÉSULTATS EN DIRECT"
+          notify={{
+            loading: isNotifying,
+            onClick: () => void handleNotifyNow(liveQuestion),
+          }}
+        />
+      )}
 
-        {question ? (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="neo-border-sm space-y-3 rounded-2xl bg-card/70 p-4">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">{question.category}</p>
-            <p className="font-display text-xl">{question.text}</p>
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span>Ouverte : {new Date(question.active_at).toLocaleString("fr-FR")}</span>
-              <span>Expire : {new Date(question.expires_at).toLocaleString("fr-FR")}</span>
-            </div>
-            {results && (
-              <div className="flex flex-wrap gap-4 text-sm font-semibold">
-                <span className="text-muted-foreground">{formatResultsSummary(question)}</span>
-                <span className="ml-auto text-muted-foreground">{results.total} votes</span>
-              </div>
-            )}
-            <Button onClick={handleNotifyNow} disabled={isNotifying} className="gap-2">
-              <BellRing className="h-4 w-4" />
-              {isNotifying ? "Envoi..." : "Envoyer la notification maintenant"}
-            </Button>
-          </motion.div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Aucune question active pour le moment.</p>
-        )}
-      </section>
+      {lastEndedQuestion && (!liveQuestion || lastEndedQuestion.id !== liveQuestion.id) && (
+        <QuestionSection
+          title="DERNIER SONDAGE TERMINÉ"
+          badge={
+            <Badge className="shrink-0 border-none bg-white/10 text-muted-foreground">Terminé</Badge>
+          }
+          question={lastEndedQuestion}
+          resultsTitle="RÉSUMÉ DU SONDAGE"
+        />
+      )}
+
+      {!liveQuestion && !lastEndedQuestion && (
+        <section className="space-y-3">
+          <h2 className="font-display text-xl tracking-wide">SONDAGE</h2>
+          <p className="text-sm text-muted-foreground">Aucun sondage pour le moment.</p>
+        </section>
+      )}
+
+      {upcomingCount > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {upcomingCount} question{upcomingCount > 1 ? "s" : ""} planifiée{upcomingCount > 1 ? "s" : ""} — voir l&apos;onglet Questions.
+        </p>
+      )}
 
       <section className="space-y-3">
         <h2 className="font-display text-xl tracking-wide">PUBLIER UNE NOUVELLE QUESTION</h2>
         <QuestionForm onSubmit={handlePublish} />
       </section>
     </div>
+  );
+}
+
+function QuestionSection({
+  title,
+  badge,
+  question,
+  resultsTitle,
+  notify,
+}: {
+  title: string;
+  badge: React.ReactNode;
+  question: Question;
+  resultsTitle: string;
+  notify?: { loading: boolean; onClick: () => void };
+}) {
+  const results = computeResults(question);
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-xl tracking-wide">{title}</h2>
+        {badge}
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="neo-border-sm space-y-4 rounded-2xl bg-card/70 p-4"
+      >
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{question.category}</p>
+          <p className="font-display text-xl">{question.text}</p>
+          <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span>Ouverte : {new Date(question.active_at).toLocaleString("fr-FR")}</span>
+            <span>Clôturée : {new Date(question.expires_at).toLocaleString("fr-FR")}</span>
+            <span>{results.total} vote{results.total > 1 ? "s" : ""}</span>
+          </div>
+        </div>
+
+        <PollResultsSummary question={question} title={resultsTitle} />
+
+        {notify && (
+          <Button onClick={notify.onClick} disabled={notify.loading} className="gap-2">
+            <BellRing className="h-4 w-4" />
+            {notify.loading ? "Envoi..." : "Envoyer la notification maintenant"}
+          </Button>
+        )}
+      </motion.div>
+    </section>
   );
 }
 

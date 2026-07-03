@@ -30,7 +30,7 @@ export function useUserProfile(): UseUserProfileResult {
   const [demoBest, setDemoBest] = useState(0);
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured || !user || user.is_anonymous) {
+    if (!isSupabaseConfigured || !user) {
       setProfile(null);
       setIsLoading(false);
       return;
@@ -75,8 +75,8 @@ export function useUserProfile(): UseUserProfileResult {
     [user, refresh]
   );
 
-  const displayStreak = isSupabaseConfigured && profile ? profile.current_streak : demoStreak;
-  const displayBest = isSupabaseConfigured && profile ? profile.highest_streak : demoBest;
+  const displayStreak = isSupabaseConfigured && user ? (profile?.current_streak ?? 0) : demoStreak;
+  const displayBest = isSupabaseConfigured && user ? (profile?.highest_streak ?? 0) : demoBest;
 
   return { profile, isLoading, refresh, updateProfile, displayStreak, displayBest };
 }

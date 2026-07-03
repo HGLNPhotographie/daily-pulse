@@ -42,12 +42,10 @@ export function DailyPollCard() {
 
   const handleVote = async (choice: Parameters<typeof submitVote>[0]) => {
     const isInTime = await submitVote(choice);
-    if (isInTime) {
-      if (isSupabaseConfigured) {
-        await refreshProfile();
-      } else {
-        setDemoStreak(bumpDemoStreakLocal());
-      }
+    if (isSupabaseConfigured) {
+      await refreshProfile();
+    } else if (isInTime) {
+      setDemoStreak(bumpDemoStreakLocal());
     }
   };
 
@@ -84,7 +82,8 @@ export function DailyPollCard() {
   }
 
   const results = computeResults(question);
-  const hasVoted = phase === "voted-in-time";
+  const hasVoted = Boolean(myVote);
+  const votedInTime = hasVoted && streakDelta === 1;
   const curtainVisible = !isCurtainClosing && (curtainOpen || hasVoted);
 
   return (
@@ -133,8 +132,15 @@ export function DailyPollCard() {
                 transition={{ delay: 0.2 }}
                 className="flex w-full flex-col items-center gap-4"
               >
-                <Badge className="gap-1.5 border-none bg-emerald-500 text-emerald-950">
-                  <Tv2 className="h-3.5 w-3.5" /> Vote validé dans les temps · flamme +1
+                <Badge
+                  className={
+                    votedInTime
+                      ? "gap-1.5 border-none bg-emerald-500 text-emerald-950"
+                      : "gap-1.5 border-none bg-amber-500/90 text-amber-950"
+                  }
+                >
+                  <Tv2 className="h-3.5 w-3.5" />
+                  {votedInTime ? "Vote validé dans les temps · flamme +1" : "Vote enregistré"}
                 </Badge>
                 <TrendChart results={results} options={question.options} myVote={myVote} />
               </motion.div>
