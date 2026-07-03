@@ -11,8 +11,13 @@ export type AdminSessionStatus =
   | "demo" // pas de Supabase en dev local : panneau ouvert pour la démo
   | "unconfigured" // prod sans variables Supabase
   | "signed-out"
-  | "forbidden"
   | "authorized";
+
+function isGuestSession(user: User): boolean {
+  if (user.is_anonymous) return true;
+  if (user.app_metadata?.provider === "anonymous") return true;
+  return !user.email;
+}
 
 interface UseAdminSessionResult {
   status: AdminSessionStatus;
@@ -44,7 +49,7 @@ export function useAdminSession(): UseAdminSessionResult {
       data: { session },
     } = await supabase.auth.getSession();
 
-    if (!session?.user || session.user.is_anonymous) {
+    if (!session?.user || isGuestSession(session.user)) {
       setUser(null);
       setStatus("signed-out");
       return;
@@ -52,8 +57,14 @@ export function useAdminSession(): UseAdminSessionResult {
 
     const isAdmin = await userIsAdmin(supabase, session.user.id);
 
+    if (!isAdmin) {
+      setUser(null);
+      setStatus("signed-out");
+      return;
+    }
+
     setUser(session.user);
-    setStatus(isAdmin ? "authorized" : "forbidden");
+    setStatus("authorized");
   }, []);
 
   useEffect(() => {
@@ -78,9 +89,13 @@ export function useAdminSession(): UseAdminSessionResult {
         setError(signInError.message);
         return;
       }
-      if (data.user && (await userIsAdmin(supabase, data.user.id))) {
-        router.replace("/admin");
+      if (!data.user || !(await userIsAdmin(supabase, data.user.id))) {
+        await supabase.auth.signOut();
+        setError("Ce compte n'a pas les droits administrateur.");
+        setStatus("signed-out");
+        return;
       }
+      router.replace("/admin");
     },
     [router]
   );

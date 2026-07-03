@@ -5,7 +5,6 @@ import { ShieldAlert } from "lucide-react";
 import { useAdminSession } from "@/hooks/useAdminSession";
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { Button } from "@/components/ui/button";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { status, error, signIn, signOut } = useAdminSession();
@@ -36,24 +35,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> puis redémarre le serveur.
           Voir <code className="text-xs">docs/SUPABASE_SETUP.md</code>.
         </p>
-      </div>
-    );
-  }
-
-  if (status === "forbidden") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <h1 className="font-display text-2xl tracking-wide">ACCÈS REFUSÉ</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Ce compte n&apos;a pas les droits administrateur. Demande à un admin d&apos;exécuter :
-          <code className="mt-2 block rounded-lg bg-black/40 p-2 text-xs">
-            update public.users set is_admin = true where email = &apos;ton@email.com&apos;;
-          </code>
-        </p>
-        <Button variant="outline" onClick={signOut}>
-          Se déconnecter
-        </Button>
       </div>
     );
   }
