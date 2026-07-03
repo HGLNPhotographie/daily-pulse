@@ -1,5 +1,11 @@
 export type VoteChoice = "pour" | "contre" | "neutre";
 
+export interface QuestionOption {
+  key: VoteChoice;
+  /** Libellé affiché (mot, emoji, flèche…). */
+  label: string;
+}
+
 export type SuggestionStatus = "pending" | "approved" | "rejected";
 
 export interface Question {
@@ -11,6 +17,7 @@ export interface Question {
   total_pour: number;
   total_contre: number;
   total_neutre: number;
+  options?: QuestionOption[];
   created_at: string;
 }
 

@@ -10,6 +10,7 @@ import { QuestionForm, type QuestionFormValues } from "@/components/admin/Questi
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchDemoQuestionHistory, fetchDemoSuggestions, getDemoUsers } from "@/lib/demo";
 import { publishQuestion, scheduleQuestion, sendNotificationNow } from "@/lib/admin-api";
+import { formatResultsSummary } from "@/lib/question-options";
 import { useNowTick } from "@/hooks/useNowTick";
 import { computeResults } from "@/types";
 import type { Question } from "@/types";
@@ -58,8 +59,14 @@ export default function AdminDashboardPage() {
 
   const handlePublish = async (values: QuestionFormValues) => {
     const result = values.scheduledAt
-      ? await scheduleQuestion(values.text, values.category, values.scheduledAt, values.windowMinutes * 60)
-      : await publishQuestion(values.text, values.category, values.windowMinutes * 60);
+      ? await scheduleQuestion(
+          values.text,
+          values.category,
+          values.scheduledAt,
+          values.windowMinutes * 60,
+          values.options
+        )
+      : await publishQuestion(values.text, values.category, values.windowMinutes * 60, values.options);
 
     if (result.error) {
       toast.error(result.error);
@@ -119,10 +126,8 @@ export default function AdminDashboardPage() {
               <span>Expire : {new Date(question.expires_at).toLocaleString("fr-FR")}</span>
             </div>
             {results && (
-              <div className="flex gap-4 text-sm font-semibold">
-                <span className="text-[#00F5D4]">Pour {results.pctPour}%</span>
-                <span className="text-[#FACC15]">Neutre {results.pctNeutre}%</span>
-                <span className="text-[#FF2D78]">Contre {results.pctContre}%</span>
+              <div className="flex flex-wrap gap-4 text-sm font-semibold">
+                <span className="text-muted-foreground">{formatResultsSummary(question)}</span>
                 <span className="ml-auto text-muted-foreground">{results.total} votes</span>
               </div>
             )}

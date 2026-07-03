@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Question, Suggestion, SuggestionStatus, VoteChoice } from "@/types";
+import { DEFAULT_QUESTION_OPTIONS } from "@/lib/question-options";
 import { createDemoId, pickQuestionText, seedRandomCounts, VOTE_WINDOW_SECONDS } from "@/lib/demo-shared";
 
 /**
@@ -23,6 +24,7 @@ function createDefaultQuestion(): Question {
     category: "société",
     active_at: now.toISOString(),
     expires_at: new Date(now.getTime() + VOTE_WINDOW_SECONDS * 1000).toISOString(),
+    options: [...DEFAULT_QUESTION_OPTIONS],
     ...seedRandomCounts(),
     created_at: now.toISOString(),
   };
@@ -38,7 +40,12 @@ export function getOrCreateDemoStoreQuestion(): Question {
   return currentQuestion;
 }
 
-export function publishDemoStoreQuestion(text: string, category: string, windowSeconds = VOTE_WINDOW_SECONDS): Question {
+export function publishDemoStoreQuestion(
+  text: string,
+  category: string,
+  windowSeconds = VOTE_WINDOW_SECONDS,
+  options = DEFAULT_QUESTION_OPTIONS
+): Question {
   const now = new Date();
   const question: Question = {
     id: `demo-${now.getTime()}`,
@@ -49,6 +56,7 @@ export function publishDemoStoreQuestion(text: string, category: string, windowS
     total_pour: 0,
     total_contre: 0,
     total_neutre: 0,
+    options: options.map((o) => ({ ...o })),
     created_at: now.toISOString(),
   };
   currentQuestion = question;
@@ -73,6 +81,25 @@ export function bumpDemoStoreActivity(): Question | null {
   const key = choices[Math.floor(Math.random() * choices.length)];
   currentQuestion = { ...currentQuestion, [key]: currentQuestion[key] + Math.ceil(Math.random() * 3) };
   return currentQuestion;
+}
+
+export function deleteDemoStoreQuestion(id: string): boolean {
+  const wasCurrent = currentQuestion?.id === id;
+  questionHistory = questionHistory.filter((q) => q.id !== id);
+  if (wasCurrent) {
+    currentQuestion = questionHistory[0] ?? null;
+    if (!currentQuestion) {
+      currentQuestion = createDefaultQuestion();
+      pushHistory(currentQuestion);
+    }
+  }
+  return true;
+}
+
+export function resetDemoStoreQuestions(): void {
+  questionHistory = [];
+  currentQuestion = null;
+  getOrCreateDemoStoreQuestion();
 }
 
 export function getDemoStoreHistory(): Question[] {

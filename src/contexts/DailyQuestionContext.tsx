@@ -18,6 +18,7 @@ import {
   getDemoVote,
   subscribeDemoLiveActivity,
 } from "@/lib/demo";
+import { withQuestionOptions } from "@/lib/question-options";
 import type { PollPhase, Question, VoteChoice } from "@/types";
 
 function formatVoteError(e: unknown): string {
@@ -78,10 +79,11 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
   const applyIncoming = useCallback((updated: Question) => {
     if (!mountedRef.current) return;
-    if (!currentQuestionIdRef.current || currentQuestionIdRef.current === updated.id) {
-      setQuestion(updated);
+    const normalized = withQuestionOptions(updated);
+    if (!currentQuestionIdRef.current || currentQuestionIdRef.current === normalized.id) {
+      setQuestion(normalized);
     } else {
-      setIncomingQuestion(updated);
+      setIncomingQuestion(normalized);
     }
   }, []);
 
@@ -100,7 +102,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         const q = await fetchDemoQuestion();
         if (cancelled || !mountedRef.current) return;
         clearDemoVoteForQuestion(q.id);
-        setQuestion(q);
+        setQuestion(withQuestionOptions(q));
         const existing = getDemoVote();
         if (existing) {
           setMyVote(existing.choice);
@@ -163,7 +165,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
       if (cancelled) return;
       if (qError) setError(qError.message);
-      if (data && mountedRef.current) setQuestion(data as Question);
+      if (data && mountedRef.current) setQuestion(withQuestionOptions(data as Question));
 
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes?.user?.id;
@@ -248,7 +250,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
           .eq("id", question.id)
           .maybeSingle();
         if (refreshed && mountedRef.current) {
-          setQuestion(refreshed as Question);
+          setQuestion(withQuestionOptions(refreshed as Question));
         }
 
         return isInTime;

@@ -3,22 +3,20 @@
 import { motion } from "framer-motion";
 import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { CHOICE_CONFIG } from "@/lib/constants";
+import { getOptionLabel, normalizeQuestionOptions, VOTE_CHOICE_ORDER } from "@/lib/question-options";
 import { useCountUp } from "@/hooks/useCountUp";
-import type { QuestionResults, VoteChoice } from "@/types";
+import type { QuestionOption, QuestionResults, VoteChoice } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface TrendChartProps {
   results: QuestionResults;
+  options?: QuestionOption[];
   myVote?: VoteChoice | null;
 }
 
-const ORDER: VoteChoice[] = ["pour", "neutre", "contre"];
+export function TrendChart({ results, options: optionsProp, myVote }: TrendChartProps) {
+  const options = normalizeQuestionOptions(optionsProp);
 
-/**
- * Révélation dramatique des tendances : jauges façon jeu télévisé qui montent
- * en spring animation, avec compteurs de pourcentages qui défilent.
- */
-export function TrendChart({ results, myVote }: TrendChartProps) {
   const pctByChoice: Record<VoteChoice, number> = {
     pour: results.pctPour,
     contre: results.pctContre,
@@ -30,9 +28,9 @@ export function TrendChart({ results, myVote }: TrendChartProps) {
     neutre: results.neutre,
   };
 
-  const chartData = ORDER.map((choice) => ({
+  const chartData = VOTE_CHOICE_ORDER.map((choice) => ({
     choice,
-    label: CHOICE_CONFIG[choice].label,
+    label: getOptionLabel(options, choice),
     pct: pctByChoice[choice],
     fill: CHOICE_CONFIG[choice].from,
   }));
@@ -59,10 +57,11 @@ export function TrendChart({ results, myVote }: TrendChartProps) {
       </div>
 
       <div className="space-y-3">
-        {ORDER.map((choice, i) => (
+        {VOTE_CHOICE_ORDER.map((choice, i) => (
           <ChoiceRow
             key={choice}
             choice={choice}
+            label={getOptionLabel(options, choice)}
             pct={pctByChoice[choice]}
             votes={votesByChoice[choice]}
             isMine={myVote === choice}
@@ -85,12 +84,14 @@ function AnimatedTotal({ total }: { total: number }) {
 
 function ChoiceRow({
   choice,
+  label,
   pct,
   votes,
   isMine,
   delay,
 }: {
   choice: VoteChoice;
+  label: string;
   pct: number;
   votes: number;
   isMine: boolean;
@@ -108,11 +109,11 @@ function ChoiceRow({
       )}
       style={isMine ? { boxShadow: `0 0 0 2px ${cfg.neon}` } : undefined}
     >
-      <div className="mb-1.5 flex items-center justify-between text-sm font-bold uppercase tracking-wider">
-        <span style={{ color: cfg.neon }}>
-          {cfg.label} {isMine && "· TON VOTE"}
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-sm font-bold uppercase tracking-wider">
+        <span className="truncate" style={{ color: cfg.neon }}>
+          {label} {isMine && "· TON VOTE"}
         </span>
-        <span className="tabular-nums text-foreground">{animatedPct.toFixed(1)}%</span>
+        <span className="shrink-0 tabular-nums text-foreground">{animatedPct.toFixed(1)}%</span>
       </div>
 
       <div className="h-4 w-full overflow-hidden rounded-full bg-black/40">

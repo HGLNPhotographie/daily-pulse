@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { CalendarClock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PollOptionsEditor, DEFAULT_QUESTION_OPTIONS } from "@/components/admin/PollOptionsEditor";
+import type { QuestionOption } from "@/types";
 
 export interface QuestionFormValues {
   text: string;
   category: string;
   windowMinutes: number;
-  scheduledAt: Date | null; // null = publication immédiate
+  scheduledAt: Date | null;
+  options: QuestionOption[];
 }
 
 interface QuestionFormProps {
@@ -22,6 +25,7 @@ export function QuestionForm({ onSubmit, submitLabel = "Publier maintenant" }: Q
   const [text, setText] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [windowMinutes, setWindowMinutes] = useState(5);
+  const [options, setOptions] = useState<QuestionOption[]>([...DEFAULT_QUESTION_OPTIONS]);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,8 +40,10 @@ export function QuestionForm({ onSubmit, submitLabel = "Publier maintenant" }: Q
         category,
         windowMinutes,
         scheduledAt: scheduleEnabled && scheduledAt ? new Date(scheduledAt) : null,
+        options: options.map((o) => ({ ...o, label: o.label.trim() || DEFAULT_QUESTION_OPTIONS.find((d) => d.key === o.key)!.label })),
       });
       setText("");
+      setOptions([...DEFAULT_QUESTION_OPTIONS]);
       setScheduleEnabled(false);
       setScheduledAt("");
     } finally {
@@ -55,6 +61,8 @@ export function QuestionForm({ onSubmit, submitLabel = "Publier maintenant" }: Q
         placeholder="Ex : Le télétravail devrait-il devenir un droit garanti par la loi ?"
         className="w-full resize-none rounded-xl border border-border bg-background/60 p-3 text-sm outline-none ring-primary/50 focus:ring-2"
       />
+
+      <PollOptionsEditor value={options} onChange={setOptions} />
 
       <div className="flex flex-wrap items-center gap-3">
         <select

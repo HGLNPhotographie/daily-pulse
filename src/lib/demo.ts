@@ -1,7 +1,8 @@
 "use client";
 
-import type { Question, Suggestion, SuggestionStatus, UserProfile, VoteChoice } from "@/types";
 import { pickQuestionText, VOTE_WINDOW_SECONDS } from "@/lib/demo-shared";
+import { DEFAULT_QUESTION_OPTIONS } from "@/lib/question-options";
+import type { Question, Suggestion, SuggestionStatus, UserProfile, VoteChoice, QuestionOption } from "@/types";
 
 /**
  * Simulateur "mode démo" : données partagées via `/api/demo/*` (Mac + iPhone sur
@@ -35,6 +36,7 @@ export function getOrCreateDemoQuestion(): Question {
       total_pour: 0,
       total_contre: 0,
       total_neutre: 0,
+      options: [...DEFAULT_QUESTION_OPTIONS],
       created_at: now.toISOString(),
     };
   }
@@ -48,6 +50,7 @@ export function getOrCreateDemoQuestion(): Question {
     total_pour: 0,
     total_contre: 0,
     total_neutre: 0,
+    options: [...DEFAULT_QUESTION_OPTIONS],
     created_at: new Date().toISOString(),
   };
 }
@@ -131,15 +134,31 @@ export function subscribeDemoLiveActivity(onUpdate: (q: Question) => void): () =
 export async function publishDemoQuestion(
   text: string,
   category: string,
-  windowSeconds = VOTE_WINDOW_SECONDS
+  windowSeconds = VOTE_WINDOW_SECONDS,
+  options?: QuestionOption[]
 ): Promise<Question> {
   const question = await demoFetch<Question>("/api/demo/question", {
     method: "POST",
-    body: JSON.stringify({ text, category, windowSeconds }),
+    body: JSON.stringify({ text, category, windowSeconds, options }),
   });
   window.localStorage.removeItem(VOTE_KEY);
   window.dispatchEvent(new CustomEvent(EVENT, { detail: question }));
   return question;
+}
+
+export async function deleteDemoQuestion(questionId: string): Promise<void> {
+  await demoFetch<{ ok: boolean }>("/api/demo/question", {
+    method: "DELETE",
+    body: JSON.stringify({ id: questionId }),
+  });
+  window.localStorage.removeItem(VOTE_KEY);
+  window.dispatchEvent(new CustomEvent(EVENT));
+}
+
+export async function resetDemoQuestionHistory(): Promise<void> {
+  await demoFetch<{ ok: boolean }>("/api/demo/history", { method: "DELETE" });
+  window.localStorage.removeItem(VOTE_KEY);
+  window.dispatchEvent(new CustomEvent(EVENT));
 }
 
 export async function fetchDemoQuestionHistory(): Promise<Question[]> {

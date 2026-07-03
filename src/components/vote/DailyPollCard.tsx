@@ -105,7 +105,12 @@ export function DailyPollCard() {
           {!hasVoted && phase !== "expired-no-vote" && (
             <>
               <CountdownShowTV expiresAt={question.expires_at} />
-              <VoteButtons onVote={handleVote} disabled={isSubmitting} selected={myVote} />
+              <VoteButtons
+                options={question.options}
+                onVote={handleVote}
+                disabled={isSubmitting}
+                selected={myVote}
+              />
               {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
             </>
           )}
@@ -129,7 +134,7 @@ export function DailyPollCard() {
                     <ZapOff className="h-3.5 w-3.5" /> Voté hors délai · flamme non incrémentée
                   </Badge>
                 )}
-                <TrendChart results={results} myVote={myVote} />
+                <TrendChart results={results} options={question.options} myVote={myVote} />
               </motion.div>
             )}
           </AnimatePresence>
