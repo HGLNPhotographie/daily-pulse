@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,8 @@ const RIDGE_COUNT = 14;
  * dévoiler la question du jour, à la manière d'un jeu télévisé américain.
  */
 export function CurtainReveal({ open, children, label = "LE RENDEZ-VOUS", onRevealComplete, className }: CurtainRevealProps) {
+  const prevOpenRef = useRef(open);
+
   // Purement dérivé de `open` (pas de state local) : le fondu d'entrée du
   // contenu est retardé en CSS le temps que les panneaux s'écartent, sans
   // jamais désynchroniser l'affichage serveur/client au montage.
@@ -30,6 +32,11 @@ export function CurtainReveal({ open, children, label = "LE RENDEZ-VOUS", onReve
     const timeout = setTimeout(() => onRevealComplete?.(), 550);
     return () => clearTimeout(timeout);
   }, [open, onRevealComplete]);
+
+  const isClosing = prevOpenRef.current && !open;
+  useEffect(() => {
+    prevOpenRef.current = open;
+  }, [open]);
 
   return (
     <div className={cn("relative isolate flex min-h-[70vh] w-full items-center justify-center overflow-hidden", className)}>
@@ -55,8 +62,8 @@ export function CurtainReveal({ open, children, label = "LE RENDEZ-VOUS", onReve
       <AnimatePresence>
         {!open && (
           <>
-            <CurtainPanel side="top" label={label} />
-            <CurtainPanel side="bottom" label={label} />
+            <CurtainPanel side="top" label={label} closing={isClosing} />
+            <CurtainPanel side="bottom" label={label} closing={isClosing} />
           </>
         )}
       </AnimatePresence>
@@ -64,16 +71,18 @@ export function CurtainReveal({ open, children, label = "LE RENDEZ-VOUS", onReve
   );
 }
 
-function CurtainPanel({ side, label }: { side: "top" | "bottom"; label: string }) {
+function CurtainPanel({ side, label, closing }: { side: "top" | "bottom"; label: string; closing: boolean }) {
   const isTop = side === "top";
 
   return (
     <motion.div
-      initial={{ y: 0 }}
+      initial={closing ? { y: isTop ? "-105%" : "105%" } : { y: 0 }}
+      animate={{ y: 0 }}
       exit={{
         y: isTop ? "-105%" : "105%",
         transition: { duration: 0.9, ease: [0.7, 0, 0.15, 1], delay: isTop ? 0 : 0.06 },
       }}
+      transition={closing ? { duration: 0.9, ease: [0.7, 0, 0.15, 1], delay: isTop ? 0 : 0.06 } : { duration: 0 }}
       className={cn(
         "absolute inset-x-0 z-20 flex h-1/2 overflow-hidden",
         isTop ? "top-0 items-end" : "bottom-0 items-start"

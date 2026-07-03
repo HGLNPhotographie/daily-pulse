@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { userIsAdmin } from "@/lib/admin-check";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export type AdminSessionStatus =
@@ -22,6 +24,7 @@ interface UseAdminSessionResult {
 
 /** Garde d'accès du panneau `/admin` : exige une session Supabase avec `users.is_admin = true`. */
 export function useAdminSession(): UseAdminSessionResult {
+  const router = useRouter();
   const [status, setStatus] = useState<AdminSessionStatus>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,20 +44,16 @@ export function useAdminSession(): UseAdminSessionResult {
       data: { session },
     } = await supabase.auth.getSession();
 
-    if (!session?.user) {
+    if (!session?.user || session.user.is_anonymous) {
       setUser(null);
       setStatus("signed-out");
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("id", session.user.id)
-      .maybeSingle();
+    const isAdmin = await userIsAdmin(supabase, session.user.id);
 
     setUser(session.user);
-    setStatus(profile?.is_admin ? "authorized" : "forbidden");
+    setStatus(isAdmin ? "authorized" : "forbidden");
   }, []);
 
   useEffect(() => {
@@ -69,13 +68,22 @@ export function useAdminSession(): UseAdminSessionResult {
     return () => subscription.subscription.unsubscribe();
   }, [checkSession]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    setError(null);
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) setError(signInError.message);
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setError(null);
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+      if (data.user && (await userIsAdmin(supabase, data.user.id))) {
+        router.replace("/admin");
+      }
+    },
+    [router]
+  );
 
   const signOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();

@@ -22,6 +22,8 @@ import { isQuestionLiveForUsers } from "@/lib/question-active";
 import { withQuestionOptions } from "@/lib/question-options";
 import type { PollPhase, Question, VoteChoice } from "@/types";
 
+const CURTAIN_CLOSE_MS = 950;
+
 function formatVoteError(e: unknown): string {
   if (e && typeof e === "object") {
     const err = e as { message?: string; details?: string; hint?: string; code?: string };
@@ -47,6 +49,7 @@ export interface UseDailyQuestionResult {
   phase: PollPhase;
   myVote: VoteChoice | null;
   curtainOpen: boolean;
+  isCurtainClosing: boolean;
   openCurtain: () => void;
   submitVote: (choice: VoteChoice) => Promise<boolean>;
   isSubmitting: boolean;
@@ -62,6 +65,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   const [question, setQuestion] = useState<Question | null>(null);
   const [myVote, setMyVote] = useState<VoteChoice | null>(null);
   const [curtainOpen, setCurtainOpen] = useState(false);
+  const [isCurtainClosing, setIsCurtainClosing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streakDelta, setStreakDelta] = useState<0 | 1>(0);
@@ -70,6 +74,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   const [now, setNow] = useState(() => Date.now());
   const mountedRef = useRef(true);
   const currentQuestionIdRef = useRef<string | null>(null);
+  const closingRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -83,11 +88,24 @@ function useDailyQuestionState(): UseDailyQuestionResult {
   }, [question]);
 
   const clearQuestionState = useCallback(() => {
+    closingRef.current = false;
     setQuestion(null);
     setMyVote(null);
     setStreakDelta(0);
     setCurtainOpen(false);
+    setIsCurtainClosing(false);
   }, []);
+
+  const closeCurtainThenClear = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setIsCurtainClosing(true);
+    setCurtainOpen(false);
+    window.setTimeout(() => {
+      if (!mountedRef.current) return;
+      clearQuestionState();
+    }, CURTAIN_CLOSE_MS);
+  }, [clearQuestionState]);
 
   const handleQuestionRemoved = useCallback(
     (deletedId: string) => {
@@ -118,13 +136,13 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     return () => clearInterval(id);
   }, []);
 
-  // Expire ou hors fenêtre → masquer la question (pas d'historique public).
+  // Expire ou hors fenêtre → refermer le rideau puis masquer la question.
   useEffect(() => {
-    if (!question) return;
+    if (!question || isCurtainClosing) return;
     if (!isQuestionLiveForUsers(question, now)) {
-      clearQuestionState();
+      closeCurtainThenClear();
     }
-  }, [now, question, clearQuestionState]);
+  }, [now, question, isCurtainClosing, closeCurtainThenClear]);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -178,7 +196,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       }
       clearDemoVoteForQuestion(updated.id);
       if (!isQuestionLiveForUsers(updated)) {
-        if (prevId === updated.id) clearQuestionState();
+        if (prevId === updated.id && !isCurtainClosing) closeCurtainThenClear();
         return;
       }
       applyLiveQuestion(updated);
@@ -188,7 +206,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       cancelled = true;
       unsubscribe();
     };
-  }, [applyLiveQuestion, clearQuestionState]);
+  }, [applyLiveQuestion, clearQuestionState, closeCurtainThenClear, isCurtainClosing]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -348,7 +366,12 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
   const phase: PollPhase = (() => {
     if (!initialLoaded) return "loading";
-    if (!question || !isQuestionLiveForUsers(question, now)) return "no-question";
+    if (!question) return "no-question";
+    if (isCurtainClosing) {
+      if (myVote) return "voted-in-time";
+      return curtainOpen ? "voting" : "curtain";
+    }
+    if (!isQuestionLiveForUsers(question, now)) return "no-question";
 
     const expires = new Date(question.expires_at).getTime();
 
@@ -362,6 +385,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     phase,
     myVote,
     curtainOpen,
+    isCurtainClosing,
     openCurtain,
     submitVote,
     isSubmitting,

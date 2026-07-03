@@ -29,6 +29,7 @@ export function DailyPollCard() {
     phase,
     myVote,
     curtainOpen,
+    isCurtainClosing,
     openCurtain,
     submitVote,
     isSubmitting,
@@ -84,7 +85,7 @@ export function DailyPollCard() {
 
   const results = computeResults(question);
   const hasVoted = phase === "voted-in-time";
-  const curtainVisible = curtainOpen || hasVoted;
+  const curtainVisible = !isCurtainClosing && (curtainOpen || hasVoted);
 
   return (
     <div className="flex flex-1 flex-col items-center px-4 pt-8">

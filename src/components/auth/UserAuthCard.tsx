@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Lock, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { userIsAdmin } from "@/lib/admin-check";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserSession } from "@/hooks/useUserSession";
 
 type AuthMode = "signup" | "signin";
 
 export function UserAuthCard() {
+  const router = useRouter();
   const { isAnonymous, signUpEmail, signInEmail } = useUserSession();
   const [mode, setMode] = useState<AuthMode>("signup");
   const [email, setEmail] = useState("");
@@ -23,7 +27,20 @@ export function UserAuthCard() {
     const result =
       mode === "signup" ? await signUpEmail(email, password) : await signInEmail(email, password);
     setIsSubmitting(false);
-    if (result.error) setError(result.error);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    if (mode === "signin") {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user && (await userIsAdmin(supabase, session.user.id))) {
+        router.replace("/admin");
+      }
+    }
   };
 
   return (
