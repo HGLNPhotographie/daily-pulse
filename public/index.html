@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Daily Pulse</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #0a0612;
+        color: #f5f5f7;
+        font-family: -apple-system, system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      p { opacity: 0.6; font-size: 14px; padding: 0 24px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Fallback local requis par Capacitor (webDir doit contenir un
+      index.html). Cette page n'est JAMAIS affichée en usage normal : en
+      production, `capacitor.config.ts` charge l'app directement depuis son
+      URL déployée (`server.url`), la vraie PWA Next.js. Ce fichier ne sert
+      que si l'app native est packagée sans connexion réseau/serveur configuré.
+    -->
+    <p>Daily Pulse se charge…</p>
+  </body>
+</html>
