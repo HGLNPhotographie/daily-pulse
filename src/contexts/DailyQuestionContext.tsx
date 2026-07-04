@@ -161,12 +161,9 @@ function useDailyQuestionState(): UseDailyQuestionResult {
 
       if (incomingActive <= currentActive) return;
 
-      if (isQuestionLiveForUsers(current)) {
-        setIncomingQuestion(normalized);
-        return;
-      }
-
-      applyIncomingQuestion(normalized);
+      // Tant qu'une question est affichée, annoncer la suivante (même hors délai / résultats).
+      setIncomingQuestion(normalized);
+      return;
     },
     [applyIncomingQuestion]
   );
@@ -227,12 +224,6 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         clearQuestionState();
         setIncomingQuestion(null);
         return;
-      }
-      const prevId = currentQuestionIdRef.current;
-      if (prevId && prevId !== updated.id) {
-        setMyVote(null);
-        setStreakDelta(0);
-        setCurtainOpen(false);
       }
       clearDemoVoteForQuestion(updated.id);
       if (!isQuestionVisibleForUsers(updated)) return;
