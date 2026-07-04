@@ -10,9 +10,17 @@ interface FriendsLeaderboardProps {
   friends: FriendListItem[];
   isLoading: boolean;
   onLoadVote: (friendId: string) => Promise<FriendLastVote | { error: string }>;
+  onRemoveFriend: (friendId: string) => Promise<{ error: string | null }>;
+  onBlockFriend: (friendId: string) => Promise<{ error: string | null }>;
 }
 
-export function FriendsLeaderboard({ friends, isLoading, onLoadVote }: FriendsLeaderboardProps) {
+export function FriendsLeaderboard({
+  friends,
+  isLoading,
+  onLoadVote,
+  onRemoveFriend,
+  onBlockFriend,
+}: FriendsLeaderboardProps) {
   const [selected, setSelected] = useState<FriendListItem | null>(null);
 
   if (isLoading) {
@@ -61,6 +69,8 @@ export function FriendsLeaderboard({ friends, isLoading, onLoadVote }: FriendsLe
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelected(null)}
         onLoadVote={onLoadVote}
+        onRemoveFriend={onRemoveFriend}
+        onBlockFriend={onBlockFriend}
       />
     </>
   );

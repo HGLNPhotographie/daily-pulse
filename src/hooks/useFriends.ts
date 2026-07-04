@@ -94,6 +94,30 @@ export function useFriends() {
     return mapFriendLastVote(data);
   }, []);
 
+  const removeFriend = useCallback(
+    async (friendId: string) => {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return { error: "Client indisponible." };
+      const { error } = await supabase.rpc("remove_friend", { p_friend_id: friendId });
+      if (error) return { error: formatFriendError(error.message) };
+      await refresh();
+      return { error: null };
+    },
+    [refresh]
+  );
+
+  const blockFriend = useCallback(
+    async (friendId: string) => {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return { error: "Client indisponible." };
+      const { error } = await supabase.rpc("block_friend", { p_friend_id: friendId });
+      if (error) return { error: formatFriendError(error.message) };
+      await refresh();
+      return { error: null };
+    },
+    [refresh]
+  );
+
   return {
     enabled,
     requests,
@@ -105,5 +129,7 @@ export function useFriends() {
     sendRequestByPseudo,
     respondRequest,
     getFriendLastVote,
+    removeFriend,
+    blockFriend,
   };
 }

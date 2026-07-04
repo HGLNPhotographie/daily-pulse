@@ -31,6 +31,7 @@ export function formatFriendError(message: string): string {
   if (message.includes("ALREADY_FRIENDS")) return "Vous êtes déjà amis.";
   if (message.includes("AUTH_REQUIRED")) return "Connecte-toi pour gérer tes amis.";
   if (message.includes("NOT_FRIENDS")) return "Cet utilisateur n'est pas dans tes amis.";
+  if (message.includes("USER_BLOCKED")) return "Action impossible avec cet utilisateur.";
   if (message.includes("REQUEST_NOT_FOUND")) return "Demande introuvable.";
   if (message.includes("FORBIDDEN")) return "Action non autorisée.";
   return message;

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export default function StreakPage() {
   const { isAnonymous } = useUserSession();
   const { displayStreak, displayBest, isLoading } = useUserProfile();
-  const { friends, isLoading: friendsLoading, getFriendLastVote, enabled: friendsEnabled } = useFriends();
+  const { friends, isLoading: friendsLoading, getFriendLastVote, removeFriend, blockFriend, enabled: friendsEnabled } = useFriends();
 
   if (isLoading) {
     return (
@@ -70,7 +70,13 @@ export default function StreakPage() {
       {friendsEnabled && (
         <div className="w-full max-w-sm space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Mes amis</h2>
-          <FriendsLeaderboard friends={friends} isLoading={friendsLoading} onLoadVote={getFriendLastVote} />
+          <FriendsLeaderboard
+            friends={friends}
+            isLoading={friendsLoading}
+            onLoadVote={getFriendLastVote}
+            onRemoveFriend={removeFriend}
+            onBlockFriend={blockFriend}
+          />
         </div>
       )}
     </div>

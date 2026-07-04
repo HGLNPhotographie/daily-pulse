@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import { Ban, Lock, UserMinus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,17 +20,29 @@ interface FriendVoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLoadVote: (friendId: string) => Promise<FriendLastVote | { error: string }>;
+  onRemoveFriend: (friendId: string) => Promise<{ error: string | null }>;
+  onBlockFriend: (friendId: string) => Promise<{ error: string | null }>;
 }
 
-export function FriendVoteDialog({ friend, open, onOpenChange, onLoadVote }: FriendVoteDialogProps) {
+export function FriendVoteDialog({
+  friend,
+  open,
+  onOpenChange,
+  onLoadVote,
+  onRemoveFriend,
+  onBlockFriend,
+}: FriendVoteDialogProps) {
   const [loading, setLoading] = useState(false);
   const [vote, setVote] = useState<FriendLastVote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"remove" | "block" | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     if (!open || !friend) {
       setVote(null);
       setError(null);
+      setConfirmAction(null);
       return;
     }
 
@@ -50,6 +64,24 @@ export function FriendVoteDialog({ friend, open, onOpenChange, onLoadVote }: Fri
     vote?.choice != null
       ? getOptionLabel(normalizeQuestionOptions(vote.options), vote.choice as VoteChoice)
       : null;
+
+  const handleAction = async () => {
+    if (!friend || !confirmAction) return;
+    setActionBusy(true);
+    const result =
+      confirmAction === "remove"
+        ? await onRemoveFriend(friend.friend_id)
+        : await onBlockFriend(friend.friend_id);
+    setActionBusy(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(confirmAction === "remove" ? "Ami retiré." : "Utilisateur bloqué.");
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,6 +119,57 @@ export function FriendVoteDialog({ friend, open, onOpenChange, onLoadVote }: Fri
             ) : (
               <p className="text-black/55">Aucun sondage récent.</p>
             )}
+          </div>
+        )}
+
+        {confirmAction ? (
+          <div className="space-y-3 rounded-xl border border-black/8 bg-black/[0.02] p-4">
+            <p className="text-sm text-black/70">
+              {confirmAction === "remove"
+                ? `Retirer ${friend?.pseudo} de tes amis ? Tu pourras le rajouter plus tard.`
+                : `Bloquer ${friend?.pseudo} ? Il·elle ne pourra plus t'ajouter ni te voir.`}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1"
+                disabled={actionBusy}
+                onClick={() => setConfirmAction(null)}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                variant={confirmAction === "block" ? "destructive" : "default"}
+                className="flex-1"
+                disabled={actionBusy}
+                onClick={() => void handleAction()}
+              >
+                {actionBusy ? "..." : confirmAction === "remove" ? "Retirer" : "Bloquer"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 gap-1.5 text-xs"
+              onClick={() => setConfirmAction("remove")}
+            >
+              <UserMinus className="h-3.5 w-3.5" />
+              Retirer
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 gap-1.5 border-red-200 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setConfirmAction("block")}
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Bloquer
+            </Button>
           </div>
         )}
       </DialogContent>
