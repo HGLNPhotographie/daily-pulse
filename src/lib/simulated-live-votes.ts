@@ -11,6 +11,8 @@ export const SIMULATED_INITIAL_MIN = 96;
 export const SIMULATED_INITIAL_MAX = 520;
 export const SIMULATED_PULSE_INCREMENT_MIN = 10;
 export const SIMULATED_PULSE_INCREMENT_MAX = 1_300;
+/** Plafond affiché (~300 k) — le total n'y atteint jamais. */
+export const SIMULATED_VOTE_CEILING = 300_000;
 
 export type FakeVoteCounts = Record<VoteChoice, number>;
 
@@ -81,6 +83,34 @@ export function getSimulatedPulseIndex(question: Pick<Question, "active_at">, no
 }
 
 /**
+ * Incrément d'une vague — ralentit au-delà de 100 k et 200 k, et freine
+ * à l'approche du plafond (~300 k, jamais atteint).
+ */
+export function pickPulseIncrement(questionId: string, pulse: number, currentTotal: number): number {
+  const maxTotal = SIMULATED_VOTE_CEILING - 1;
+  if (currentTotal >= maxTotal) return 0;
+
+  const headroom = maxTotal - currentTotal;
+  const proximityFactor = Math.min(1, headroom / 25_000);
+
+  let min = SIMULATED_PULSE_INCREMENT_MIN;
+  let max = SIMULATED_PULSE_INCREMENT_MAX;
+
+  if (currentTotal >= 200_000) {
+    min = 2;
+    max = 48;
+  } else if (currentTotal >= 100_000) {
+    min = 6;
+    max = 190;
+  }
+
+  const raw = seededInt(questionId, `pulse-${pulse}`, min, max);
+  let increment = Math.round(raw * proximityFactor);
+  if (increment < 1 && headroom > 0) increment = 1;
+  return Math.min(increment, headroom);
+}
+
+/**
  * Totaux fictifs globaux à un instant T — mêmes chiffres pour tous les clients
  * ayant la même question et la même horloge (±5 s).
  */
@@ -98,12 +128,9 @@ export function computeDeterministicFakeCounts(
   );
 
   for (let pulse = 1; pulse <= pulseIndex; pulse++) {
-    const increment = seededInt(
-      question.id,
-      `pulse-${pulse}`,
-      SIMULATED_PULSE_INCREMENT_MIN,
-      SIMULATED_PULSE_INCREMENT_MAX
-    );
+    const currentTotal = fakeVotesTotal(counts);
+    const increment = pickPulseIncrement(question.id, pulse, currentTotal);
+    if (increment <= 0) break;
     counts = addFakeVoteCounts(counts, splitFakeVotesTotalDeterministic(question.id, `pulse-split-${pulse}`, increment));
   }
 
