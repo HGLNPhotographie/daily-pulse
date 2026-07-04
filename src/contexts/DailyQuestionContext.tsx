@@ -18,7 +18,7 @@ import {
   getDemoVote,
   subscribeDemoLiveActivity,
 } from "@/lib/demo";
-import { isQuestionLiveForUsers } from "@/lib/question-active";
+import { isQuestionLiveForUsers, isQuestionVisibleForUsers } from "@/lib/question-active";
 import { withQuestionOptions } from "@/lib/question-options";
 import type { PollPhase, Question, VoteChoice } from "@/types";
 
@@ -141,7 +141,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     (updated: Question) => {
       if (!mountedRef.current) return;
       const normalized = withQuestionOptions(updated);
-      if (!isQuestionLiveForUsers(updated)) return;
+      if (!isQuestionVisibleForUsers(updated)) return;
 
       const currentId = currentQuestionIdRef.current;
       const current = questionRef.current;
@@ -156,12 +156,17 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         return;
       }
 
-      if (!isQuestionLiveForUsers(current)) {
-        applyIncomingQuestion(normalized);
+      const incomingActive = new Date(normalized.active_at).getTime();
+      const currentActive = new Date(current.active_at).getTime();
+
+      if (incomingActive <= currentActive) return;
+
+      if (isQuestionLiveForUsers(current)) {
+        setIncomingQuestion(normalized);
         return;
       }
 
-      setIncomingQuestion(normalized);
+      applyIncomingQuestion(normalized);
     },
     [applyIncomingQuestion]
   );
@@ -171,14 +176,13 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     return () => clearInterval(id);
   }, []);
 
-  // Expire sans vote → refermer le rideau. Après un vote, on garde les résultats
-  // visibles jusqu'à la prochaine question.
+  // Ouvre le rideau automatiquement après la fenêtre à temps pour que la question reste visible.
   useEffect(() => {
-    if (!question || isCurtainClosing || myVote) return;
-    if (!isQuestionLiveForUsers(question, now)) {
-      closeCurtainThenClear();
+    if (!question || myVote || curtainOpen || isCurtainClosing) return;
+    if (isQuestionVisibleForUsers(question, now) && !isQuestionLiveForUsers(question, now)) {
+      setCurtainOpen(true);
     }
-  }, [now, question, isCurtainClosing, myVote, closeCurtainThenClear]);
+  }, [now, question, myVote, curtainOpen, isCurtainClosing]);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -203,7 +207,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       try {
         const q = await fetchDemoQuestion();
         if (cancelled || !mountedRef.current) return;
-        if (q && isQuestionLiveForUsers(q)) {
+        if (q && isQuestionVisibleForUsers(q)) {
           setQuestion(withQuestionOptions(q));
           loadVoteForQuestion(q);
         } else {
@@ -231,10 +235,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         setCurtainOpen(false);
       }
       clearDemoVoteForQuestion(updated.id);
-      if (!isQuestionLiveForUsers(updated)) {
-        if (prevId === updated.id && !closingRef.current && !myVoteRef.current) closeCurtainThenClear();
-        return;
-      }
+      if (!isQuestionVisibleForUsers(updated)) return;
       applyLiveQuestion(updated);
     });
 
@@ -279,7 +280,6 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         .from("questions")
         .select("*")
         .lte("active_at", nowIso)
-        .gt("expires_at", nowIso)
         .order("active_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -317,7 +317,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       if (resolvedQuestion && mountedRef.current) {
         setQuestion(withQuestionOptions(resolvedQuestion));
 
-        if (uid && liveQuestion && liveQuestion.id === resolvedQuestion.id) {
+        if (uid) {
           const { data: existingVote } = await supabase
             .from("votes")
             .select("choice, is_in_time")
@@ -355,7 +355,6 @@ function useDailyQuestionState(): UseDailyQuestionResult {
         .from("questions")
         .select("*")
         .lte("active_at", nowIso)
-        .gt("expires_at", nowIso)
         .order("active_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -455,14 +454,14 @@ function useDailyQuestionState(): UseDailyQuestionResult {
     if (!initialLoaded) return "loading";
     if (!question) return "no-question";
     if (isCurtainClosing) {
-      if (myVote) return "voted-in-time";
+      if (myVote) return streakDelta ? "voted-in-time" : "expired-voted-late";
       return curtainOpen ? "voting" : "curtain";
     }
-    if (myVote) return "voted-in-time";
-    if (!isQuestionLiveForUsers(question, now)) return "no-question";
-
-    const expires = new Date(question.expires_at).getTime();
-    if (now >= expires) return "no-question";
+    if (myVote) return streakDelta ? "voted-in-time" : "expired-voted-late";
+    if (!isQuestionVisibleForUsers(question, now)) return "no-question";
+    if (!isQuestionLiveForUsers(question, now)) {
+      return curtainOpen ? "voting" : "curtain";
+    }
     return curtainOpen ? "voting" : "curtain";
   })();
 

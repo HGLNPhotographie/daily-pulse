@@ -61,7 +61,9 @@ export function getOptionLabel(options: QuestionOption[] | undefined, key: VoteC
 export function isSymbolLabel(label: string): boolean {
   const trimmed = label.trim();
   if (trimmed.length === 0) return false;
-  if (trimmed.length <= 4 && !/[a-zA-ZÀ-ÿ]{5,}/.test(trimmed)) return true;
+  // Mots en lettres (POUR, OUI, etc.) → toujours afficher l'icône associée
+  if (/^[a-zA-ZÀ-ÿ]+$/u.test(trimmed)) return false;
+  if (trimmed.length <= 4) return true;
   return /^[\p{Emoji}\p{Symbol}\p{Punctuation}\s↑↓→←↔+−]+$/u.test(trimmed);
 }
 

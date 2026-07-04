@@ -10,10 +10,6 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-display);
-  --color-neon-cyan: #00f5d4;
-  --color-neon-pink: #ff2d78;
-  --color-neon-gold: #facc15;
-  --color-neon-violet: #a855f7;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -53,38 +49,38 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #0a0a0a;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a3a3a3;
+  --chart-1: #0a0a0a;
+  --chart-2: #525252;
+  --chart-3: #737373;
+  --chart-4: #a3a3a3;
+  --chart-5: #d4d4d4;
+  --radius: 0.5rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a3a3a3;
 }
 
 .dark {
@@ -106,11 +102,6 @@
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.83 0.19 175);
-  --chart-1: oklch(0.83 0.19 175);
-  --chart-2: oklch(0.65 0.24 25);
-  --chart-3: oklch(0.85 0.18 95);
-  --chart-4: oklch(0.7 0.2 300);
-  --chart-5: oklch(0.6 0.2 250);
   --sidebar: oklch(0.12 0.03 280);
   --sidebar-foreground: oklch(0.97 0.01 90);
   --sidebar-primary: oklch(0.83 0.19 175);
@@ -126,79 +117,32 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(ellipse 80% 60% at 50% -10%, oklch(0.3 0.1 300 / 35%), transparent),
-      radial-gradient(ellipse 60% 40% at 90% 100%, oklch(0.35 0.15 175 / 20%), transparent);
-    background-attachment: fixed;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;
   }
 }
 
-/* ============================================================================
-   DIRECTION ARTISTIQUE "SHOW TV AMÉRICAIN" — utilitaires globaux
-   ============================================================================ */
-
 @layer utilities {
   .font-display {
-    font-family: var(--font-display), var(--font-sans);
+    font-family: var(--font-sans);
+    font-weight: 600;
   }
 
-  .text-outline {
-    -webkit-text-stroke: 2px oklch(1 0 0 / 90%);
-  }
-
+  /* Conservés pour l'admin / rétrocompatibilité */
   .neo-border {
-    border: 3px solid var(--foreground);
-    box-shadow: 6px 6px 0 0 var(--foreground);
+    border: 1px solid var(--border);
+    box-shadow: none;
   }
 
   .neo-border-sm {
-    border: 2px solid var(--foreground);
-    box-shadow: 4px 4px 0 0 var(--foreground);
+    border: 1px solid var(--border);
+    box-shadow: none;
   }
 
-  .scanlines::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 2px,
-      rgba(255, 255, 255, 0.035) 3px,
-      transparent 4px
-    );
-    mix-blend-mode: overlay;
-  }
-
-  .text-glow-cyan {
-    text-shadow:
-      0 0 6px oklch(0.83 0.19 175 / 90%),
-      0 0 24px oklch(0.83 0.19 175 / 60%),
-      0 0 48px oklch(0.83 0.19 175 / 30%);
-  }
-
+  .text-glow-cyan,
   .text-glow-pink {
-    text-shadow:
-      0 0 6px oklch(0.75 0.22 340 / 90%),
-      0 0 24px oklch(0.75 0.22 340 / 60%);
+    text-shadow: none;
   }
-}
-
-@keyframes marquee-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
-
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-1%, -2%); }
-  30% { transform: translate(2%, 1%); }
-  50% { transform: translate(-2%, 2%); }
-  70% { transform: translate(1%, -1%); }
-  90% { transform: translate(-1%, 2%); }
 }

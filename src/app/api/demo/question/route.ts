@@ -3,7 +3,7 @@ import { assertDemoApiAvailable } from "@/lib/demo-guard.server";
 import { normalizeQuestionOptions } from "@/lib/question-options";
 import {
   bumpDemoStoreActivity,
-  getActiveDemoStoreQuestion,
+  getCurrentDemoStoreQuestion,
   publishDemoStoreQuestion,
   deleteDemoStoreQuestion,
 } from "@/lib/demo-store.server";
@@ -13,7 +13,7 @@ export async function GET() {
   const blocked = assertDemoApiAvailable();
   if (blocked) return blocked;
   bumpDemoStoreActivity();
-  const question = getActiveDemoStoreQuestion();
+  const question = getCurrentDemoStoreQuestion();
   if (!question) {
     return NextResponse.json({ error: "Aucune question en cours." }, { status: 404 });
   }

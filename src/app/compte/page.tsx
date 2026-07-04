@@ -79,7 +79,7 @@ export default function ComptePage() {
     <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-10 pb-8">
       <div className="flex items-center gap-2">
         <User className="h-6 w-6 text-primary" />
-        <h1 className="font-display text-3xl tracking-wide text-glow-cyan">MON COMPTE</h1>
+        <h1 className="text-sm font-semibold uppercase tracking-[0.25em] text-black/45">Mon compte</h1>
       </div>
 
       {showAuth ? (
@@ -94,7 +94,7 @@ export default function ComptePage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="neo-border w-full max-w-md space-y-4 rounded-2xl bg-card/90 p-6"
+          className="w-full max-w-md space-y-4 rounded-2xl border border-black/10 bg-white p-6"
         >
           <div className="space-y-1 text-center">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Connecté</p>

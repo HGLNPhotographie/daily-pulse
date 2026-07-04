@@ -2,9 +2,14 @@ import type { Question } from "@/types";
 
 export type QuestionAdminState = "scheduled" | "live" | "ended";
 
-/** Question visible côté public : fenêtre de vote ouverte (active_at ≤ now < expires_at). */
+/** Fenêtre à temps (flamme) : active_at ≤ now < expires_at. */
 export function isQuestionLiveForUsers(question: Question, now = Date.now()): boolean {
   return getQuestionAdminState(question, now) === "live";
+}
+
+/** Question affichée côté public : déjà commencée, jusqu'à remplacement par une plus récente. */
+export function isQuestionVisibleForUsers(question: Question, now = Date.now()): boolean {
+  return new Date(question.active_at).getTime() <= now;
 }
 
 export function getQuestionAdminState(question: Question, now = Date.now()): QuestionAdminState {

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Space_Grotesk } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { AuthBootstrap } from "@/components/layout/AuthBootstrap";
@@ -13,12 +13,6 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const bebasNeue = Bebas_Neue({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -42,7 +36,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0612",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -51,25 +45,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="fr"
-      className={`dark ${spaceGrotesk.variable} ${bebasNeue.variable} h-full antialiased`}
-    >
-      <body className="relative flex min-h-full flex-col overflow-x-hidden bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.04] mix-blend-overlay" aria-hidden>
-          <svg width="100%" height="100%">
-            <filter id="noiseFilter">
-              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
-            </filter>
-            <rect width="100%" height="100%" filter="url(#noiseFilter)" />
-          </svg>
-        </div>
+    <html lang="fr" className={`${spaceGrotesk.variable} h-full`}>
+      <body className="relative flex min-h-full flex-col overflow-x-hidden bg-white text-foreground">
         <AppProviders>
           <AdminDashboardBar />
           <main className="relative z-10 flex flex-1 flex-col pb-24">{children}</main>
         </AppProviders>
         <BottomNav />
-        <Toaster theme="dark" position="top-center" />
+        <Toaster theme="light" position="top-center" />
         <ServiceWorkerRegister />
         <AuthBootstrap />
         <CapacitorBootstrap />

@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import confetti from "canvas-confetti";
 import { ThumbsDown, ThumbsUp, Minus } from "lucide-react";
-import { CHOICE_CONFIG } from "@/lib/constants";
 import { getOptionLabel, isSymbolLabel, normalizeQuestionOptions, VOTE_CHOICE_ORDER } from "@/lib/question-options";
 import { triggerHaptic } from "@/lib/capacitor";
 import type { QuestionOption, VoteChoice } from "@/types";
@@ -27,34 +25,17 @@ export function VoteButtons({ options: optionsProp, onVote, disabled, selected }
   const options = normalizeQuestionOptions(optionsProp);
   const [pressed, setPressed] = useState<VoteChoice | null>(null);
 
-  const handleVote = (choice: VoteChoice, event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleVote = (choice: VoteChoice) => {
     if (disabled) return;
     setPressed(choice);
     void triggerHaptic("light");
-
-    const cfg = CHOICE_CONFIG[choice];
-    const rect = event.currentTarget.getBoundingClientRect();
-    confetti({
-      particleCount: 40,
-      spread: 60,
-      startVelocity: 32,
-      gravity: 1.1,
-      scalar: 0.8,
-      colors: [cfg.from, cfg.to, "#ffffff"],
-      origin: {
-        x: (rect.left + rect.width / 2) / window.innerWidth,
-        y: (rect.top + rect.height / 2) / window.innerHeight,
-      },
-    });
-
     onVote(choice);
-    setTimeout(() => setPressed(null), 250);
+    setTimeout(() => setPressed(null), 200);
   };
 
   return (
-    <div className="grid w-full max-w-md grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid w-full max-w-sm grid-cols-1 gap-3 sm:grid-cols-3">
       {VOTE_CHOICE_ORDER.map((choice) => {
-        const cfg = CHOICE_CONFIG[choice];
         const label = getOptionLabel(options, choice);
         const Icon = ICONS[choice];
         const symbolOnly = isSymbolLabel(label);
@@ -66,32 +47,20 @@ export function VoteButtons({ options: optionsProp, onVote, disabled, selected }
             key={choice}
             type="button"
             disabled={disabled}
-            onClick={(e) => handleVote(choice, e)}
-            whileTap={disabled ? undefined : { scale: 0.92, y: 6 }}
+            onClick={() => handleVote(choice)}
+            whileTap={disabled ? undefined : { scale: 0.97 }}
             className={cn(
-              "group relative flex flex-col items-center justify-center gap-2 rounded-2xl border-[3px] px-4 py-6 font-display tracking-wider transition-all",
-              symbolOnly ? "text-3xl sm:text-4xl" : "text-xl sm:text-2xl",
-              "active:translate-y-1.5",
+              "flex flex-col items-center justify-center gap-2 rounded-full border px-4 py-4 text-sm font-medium transition-colors",
+              symbolOnly ? "text-2xl sm:text-3xl" : "text-sm",
+              isSelected
+                ? "border-white bg-white text-black"
+                : "border-white/35 bg-transparent text-white hover:border-white/60",
               disabled && !isSelected && "cursor-not-allowed opacity-40",
-              isSelected ? "border-white" : "border-black/40"
+              isPressed && "scale-[0.97]"
             )}
-            style={{
-              background: `linear-gradient(160deg, ${cfg.from}, ${cfg.to})`,
-              color: "#0a0612",
-              boxShadow: isPressed
-                ? `0 2px 0 0 rgba(0,0,0,0.7), 0 0 20px ${cfg.neon}99`
-                : `0 8px 0 0 rgba(0,0,0,0.7), 0 0 25px ${cfg.neon}66`,
-            }}
           >
-            {!symbolOnly && <Icon className="h-7 w-7" strokeWidth={3} />}
-            <span className="text-center leading-tight">{label}</span>
-            {isSelected && (
-              <motion.span
-                layoutId="vote-selected-ring"
-                className="absolute -inset-1 rounded-2xl border-2 border-white"
-                style={{ boxShadow: `0 0 20px ${cfg.neon}` }}
-              />
-            )}
+            {!symbolOnly && <Icon className="h-5 w-5" strokeWidth={2} />}
+            <span className="leading-tight">{label}</span>
           </motion.button>
         );
       })}

@@ -78,11 +78,11 @@ export function UserAuthCard() {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="neo-border w-full max-w-md space-y-4 rounded-2xl bg-card/90 p-6"
+      className="w-full max-w-md space-y-4 rounded-2xl border border-black/10 bg-white p-6"
     >
       <div className="text-center">
-        <h2 className="font-display text-2xl tracking-wide text-glow-cyan">
-          {mode === "signup" ? "CRÉER MON COMPTE" : "SE CONNECTER"}
+        <h2 className="text-xl font-semibold">
+          {mode === "signup" ? "Créer mon compte" : "Se connecter"}
         </h2>
         {isAnonymous && mode === "signup" && (
           <p className="mt-2 text-xs text-muted-foreground">

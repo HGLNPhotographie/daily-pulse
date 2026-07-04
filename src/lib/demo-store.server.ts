@@ -1,8 +1,9 @@
 import "server-only";
 
-import type { Question, Suggestion, SuggestionStatus, VoteChoice } from "@/types";
+import { isQuestionLiveForUsers } from "@/lib/question-active";
 import { DEFAULT_QUESTION_OPTIONS } from "@/lib/question-options";
 import { createDemoId, pickQuestionText, seedRandomCounts, VOTE_WINDOW_SECONDS } from "@/lib/demo-shared";
+import type { Question, Suggestion, SuggestionStatus, VoteChoice } from "@/types";
 
 /**
  * État démo partagé côté serveur : permet à l'admin (Mac) et à l'app (iPhone
@@ -31,17 +32,21 @@ function createDefaultQuestion(): Question {
 }
 
 export function getActiveDemoStoreQuestion(): Question | null {
+  const current = getCurrentDemoStoreQuestion();
+  if (!current || !isQuestionLiveForUsers(current)) return null;
+  return current;
+}
+
+/** Dernière question publiée et déjà active (même après la fenêtre à temps). */
+export function getCurrentDemoStoreQuestion(): Question | null {
   if (!currentQuestion) return null;
-  const now = Date.now();
-  const active = new Date(currentQuestion.active_at).getTime();
-  const expires = new Date(currentQuestion.expires_at).getTime();
-  if (now < active || now >= expires) return null;
+  if (Date.now() < new Date(currentQuestion.active_at).getTime()) return null;
   return currentQuestion;
 }
 
 export function getOrCreateDemoStoreQuestion(): Question {
-  const active = getActiveDemoStoreQuestion();
-  if (active) return active;
+  const current = getCurrentDemoStoreQuestion();
+  if (current) return current;
   currentQuestion = createDefaultQuestion();
   pushHistory(currentQuestion);
   return currentQuestion;

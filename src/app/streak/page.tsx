@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Trophy } from "lucide-react";
 import Link from "next/link";
 import { StreakFlame } from "@/components/flame/StreakFlame";
 import { STREAK_TIERS } from "@/lib/constants";
@@ -16,23 +14,20 @@ export default function StreakPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+      <div className="flex flex-1 items-center justify-center bg-white">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/10 border-t-black/60" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-8 px-4 pt-10">
-      <h1 className="font-display text-3xl tracking-wide text-glow-pink">MA FLAMME</h1>
+    <div className="flex flex-1 flex-col items-center gap-10 bg-white px-4 pt-10 pb-8">
+      <h1 className="text-sm font-semibold uppercase tracking-[0.25em] text-black/45">Ma flamme</h1>
 
       {isSupabaseConfigured && isAnonymous && (
-        <div className="neo-border-sm max-w-md rounded-xl bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-200">
-          <p>Tu joues en mode invité. Crée un compte pour sauvegarder ta flamme.</p>
-          <Link
-            href="/compte"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted"
-          >
+        <div className="max-w-md rounded-2xl border border-black/8 bg-black/[0.02] px-4 py-3 text-center text-sm text-black/60">
+          <p>Mode invité — crée un compte pour sauvegarder ta flamme.</p>
+          <Link href="/compte" className="mt-2 inline-block text-sm font-medium text-black underline-offset-2 hover:underline">
             Créer mon compte
           </Link>
         </div>
@@ -40,36 +35,34 @@ export default function StreakPage() {
 
       <StreakFlame streak={displayStreak} size="xl" />
 
-      <div className="grid w-full max-w-md grid-cols-2 gap-3">
-        <StatCard label="Streak actuel" value={displayStreak} accent="#00F5D4" />
-        <StatCard label="Record perso" value={displayBest} accent="#FACC15" icon={<Trophy className="h-4 w-4" />} />
+      <div className="grid w-full max-w-sm grid-cols-2 gap-px overflow-hidden rounded-2xl border border-black/8 bg-black/8">
+        <StatCard label="Actuel" value={displayStreak} />
+        <StatCard label="Record" value={displayBest} />
       </div>
 
-      <div className="w-full max-w-md space-y-3">
-        <h2 className="font-display text-xl tracking-wide">PALIERS</h2>
+      <div className="w-full max-w-sm space-y-2">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Paliers</h2>
         {STREAK_TIERS.slice()
           .reverse()
           .map((tier) => {
             const reached = displayStreak >= tier.min;
             return (
-              <motion.div
+              <div
                 key={tier.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
                 className={cn(
-                  "neo-border-sm flex items-center justify-between rounded-xl bg-card/70 px-4 py-3",
-                  !reached && "opacity-40 grayscale"
+                  "flex items-center justify-between rounded-xl border border-black/6 px-4 py-3",
+                  !reached && "opacity-35"
                 )}
               >
                 <div className="flex items-center gap-3">
                   <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ background: tier.colors[0], boxShadow: `0 0 10px ${tier.colors[0]}` }}
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: tier.colors[0] }}
                   />
-                  <span className="font-semibold">{tier.name}</span>
+                  <span className="text-sm font-medium">{tier.name}</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{tier.min}+ jours</span>
-              </motion.div>
+                <span className="text-xs text-black/45">{tier.min}+ jours</span>
+              </div>
             );
           })}
       </div>
@@ -77,16 +70,11 @@ export default function StreakPage() {
   );
 }
 
-function StatCard({ label, value, accent, icon }: { label: string; value: number; accent: string; icon?: React.ReactNode }) {
+function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="neo-border-sm flex flex-col items-center gap-1 rounded-xl bg-card/70 px-4 py-4">
-      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        {icon}
-        {label}
-      </div>
-      <span className="font-display text-4xl" style={{ color: accent, textShadow: `0 0 14px ${accent}88` }}>
-        {value}
-      </span>
+    <div className="flex flex-col items-center gap-1 bg-white px-4 py-5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-black/45">{label}</span>
+      <span className="text-3xl font-semibold tabular-nums">{value}</span>
     </div>
   );
 }
