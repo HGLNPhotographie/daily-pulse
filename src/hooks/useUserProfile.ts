@@ -13,7 +13,11 @@ interface UseUserProfileResult {
   profile: UserProfile | null;
   isLoading: boolean;
   refresh: () => Promise<void>;
-  updateProfile: (updates: { pseudo?: string; gender?: Gender | null }) => Promise<{ error: string | null }>;
+  updateProfile: (updates: {
+    pseudo?: string;
+    gender?: Gender | null;
+    votes_private?: boolean;
+  }) => Promise<{ error: string | null }>;
   /** Streak affichable (Supabase ou démo localStorage). */
   displayStreak: number;
   displayBest: number;
@@ -54,12 +58,17 @@ export function useUserProfile(): UseUserProfileResult {
   }, [refresh, user?.id, user?.is_anonymous, status]);
 
   const updateProfile = useCallback(
-    async (updates: { pseudo?: string; gender?: Gender | null }) => {
+    async (updates: { pseudo?: string; gender?: Gender | null; votes_private?: boolean }) => {
       if (!user || user.is_anonymous) return { error: "Connecte-toi pour modifier ton profil." };
       const supabase = getSupabaseBrowserClient();
       if (!supabase) return { error: "Client indisponible." };
 
-      const payload: { pseudo?: string; gender?: Gender | null; profile_completed_at?: string } = {};
+      const payload: {
+        pseudo?: string;
+        gender?: Gender | null;
+        profile_completed_at?: string;
+        votes_private?: boolean;
+      } = {};
 
       if (updates.pseudo !== undefined) {
         const pseudoError = validatePseudo(updates.pseudo);
@@ -68,6 +77,9 @@ export function useUserProfile(): UseUserProfileResult {
       }
       if (updates.gender !== undefined) {
         payload.gender = updates.gender;
+      }
+      if (updates.votes_private !== undefined) {
+        payload.votes_private = updates.votes_private;
       }
       if (payload.pseudo) {
         payload.profile_completed_at = new Date().toISOString();

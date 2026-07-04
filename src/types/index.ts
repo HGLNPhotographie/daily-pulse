@@ -47,6 +47,7 @@ export interface UserProfile {
   is_admin: boolean;
   is_banned?: boolean;
   banned_at?: string | null;
+  votes_private?: boolean;
   created_at: string;
 }
 
@@ -95,3 +96,29 @@ export type PollPhase =
   | "voted-in-time" // vote posé dans les temps -> résultats + flamme incrémentée
   | "expired-voted-late" // a voté hors délai -> résultats visibles, pas de flamme
   | "expired-no-vote"; // fenêtre expirée, aucun vote -> flamme cassée
+
+export type FriendRequestStatus = "pending" | "accepted" | "rejected";
+
+export interface FriendRequestItem {
+  id: string;
+  from_user_id: string;
+  from_pseudo: string;
+  from_streak: number;
+  created_at: string;
+}
+
+export interface FriendListItem {
+  friend_id: string;
+  pseudo: string;
+  current_streak: number;
+  highest_streak: number;
+}
+
+export interface FriendLastVote {
+  hidden: boolean;
+  voted: boolean;
+  choice: VoteChoice | null;
+  question_id: string | null;
+  question_text: string | null;
+  options?: QuestionOption[] | null;
+}

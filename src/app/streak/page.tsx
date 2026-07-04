@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { StreakFlame } from "@/components/flame/StreakFlame";
+import { FriendsLeaderboard } from "@/components/friends/FriendsLeaderboard";
 import { STREAK_TIERS } from "@/lib/constants";
+import { useFriends } from "@/hooks/useFriends";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserSession } from "@/hooks/useUserSession";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -11,6 +13,7 @@ import { cn } from "@/lib/utils";
 export default function StreakPage() {
   const { isAnonymous } = useUserSession();
   const { displayStreak, displayBest, isLoading } = useUserProfile();
+  const { friends, isLoading: friendsLoading, getFriendLastVote, enabled: friendsEnabled } = useFriends();
 
   if (isLoading) {
     return (
@@ -55,10 +58,7 @@ export default function StreakPage() {
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ background: tier.colors[0] }}
-                  />
+                  <span className="h-2 w-2 rounded-full" style={{ background: tier.colors[0] }} />
                   <span className="text-sm font-medium">{tier.name}</span>
                 </div>
                 <span className="text-xs text-black/45">{tier.min}+ jours</span>
@@ -66,6 +66,13 @@ export default function StreakPage() {
             );
           })}
       </div>
+
+      {friendsEnabled && (
+        <div className="w-full max-w-sm space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Mes amis</h2>
+          <FriendsLeaderboard friends={friends} isLoading={friendsLoading} onLoadVote={getFriendLastVote} />
+        </div>
+      )}
     </div>
   );
 }
