@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { CHOICE_CONFIG } from "@/lib/constants";
 import { getOptionLabel, normalizeQuestionOptions, VOTE_CHOICE_ORDER } from "@/lib/question-options";
 import type { QuestionOption, QuestionResults, VoteChoice } from "@/types";
@@ -36,43 +35,30 @@ export function TrendChart({
     neutre: results.neutre,
   };
 
-  const chartData = VOTE_CHOICE_ORDER.map((choice) => ({
-    choice,
-    label: getOptionLabel(options, choice),
-    pct: pctByChoice[choice],
-    fill: isDark ? "#ffffff" : CHOICE_CONFIG[choice].from,
-  }));
-
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="flex items-baseline justify-between">
         <h3 className={cn("text-lg font-semibold", isDark ? "text-white" : "text-foreground")}>{title}</h3>
-        <AnimatedTotal total={results.total} isDark={isDark} />
+        <span
+          className={cn(
+            "text-sm tabular-nums transition-all duration-300",
+            isDark ? "text-white/50" : "text-muted-foreground"
+          )}
+        >
+          {Math.round(results.total).toLocaleString("fr-FR")} votes
+        </span>
       </div>
 
-      <div className="h-32 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-            <XAxis type="number" domain={[0, 100]} hide />
-            <YAxis type="category" dataKey="label" hide />
-            <Bar dataKey="pct" radius={[4, 4, 4, 4]} isAnimationActive animationDuration={900} animationEasing="ease-out">
-              {chartData.map((entry) => (
-                <Cell key={entry.choice} fill={entry.fill} fillOpacity={isDark ? 0.85 : 1} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {VOTE_CHOICE_ORDER.map((choice) => (
-          <ChoiceRow
+          <ResultBar
             key={choice}
             label={getOptionLabel(options, choice)}
             pct={pctByChoice[choice]}
             votes={votesByChoice[choice]}
             isMine={myVote === choice}
             isDark={isDark}
+            fillColor={isDark ? "#ffffff" : CHOICE_CONFIG[choice].from}
           />
         ))}
       </div>
@@ -80,55 +66,83 @@ export function TrendChart({
   );
 }
 
-function AnimatedTotal({ total, isDark }: { total: number; isDark: boolean }) {
-  return (
-    <span className={cn("text-sm tabular-nums transition-all duration-300", isDark ? "text-white/50" : "text-muted-foreground")}>
-      {Math.round(total).toLocaleString("fr-FR")} votes
-    </span>
-  );
-}
-
-function ChoiceRow({
+function ResultBar({
   label,
   pct,
   votes,
   isMine,
   isDark,
+  fillColor,
 }: {
   label: string;
   pct: number;
   votes: number;
   isMine: boolean;
   isDark: boolean;
+  fillColor: string;
 }) {
+  const displayPct = pct.toFixed(1);
+  const barWidth = pct > 0 ? Math.max(pct, 14) : 0;
+
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg p-3",
-        isDark ? "bg-white/8" : "border border-border bg-muted/30",
-        isMine && (isDark ? "ring-1 ring-white/60" : "ring-1 ring-black")
+        "flex items-center gap-2.5",
+        isMine && (isDark ? "rounded-lg ring-1 ring-white/50 ring-offset-2 ring-offset-black" : "rounded-lg ring-1 ring-black ring-offset-2")
       )}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-sm font-medium">
-        <span className={cn("truncate", isDark ? "text-white" : "text-foreground")}>
-          {label} {isMine && "· ton vote"}
-        </span>
-        <span className={cn("shrink-0 tabular-nums transition-all duration-300", isDark ? "text-white/70" : "text-muted-foreground")}>
-          {pct.toFixed(1)}%
-        </span>
-      </div>
-
-      <div className={cn("h-1.5 w-full overflow-hidden rounded-full", isDark ? "bg-white/15" : "bg-black/8")}>
+      <div
+        className={cn(
+          "relative h-10 min-w-0 flex-1 overflow-hidden rounded-lg",
+          isDark ? "bg-white/12" : "bg-black/6"
+        )}
+      >
         <motion.div
-          className={cn("h-full rounded-full", isDark ? "bg-white" : "bg-black")}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        />
+          className="absolute inset-y-0 left-0 flex items-center justify-between gap-2 px-3"
+          style={{ backgroundColor: fillColor }}
+          initial={{ width: 0 }}
+          animate={{ width: `${barWidth}%` }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+        >
+          <span
+            className={cn(
+              "min-w-0 truncate text-sm font-medium",
+              isDark ? "text-black" : "text-white"
+            )}
+          >
+            {label}
+            {isMine && <span className="font-normal opacity-70"> · toi</span>}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 text-sm font-semibold tabular-nums",
+              isDark ? "text-black" : "text-white"
+            )}
+          >
+            {displayPct}%
+          </span>
+        </motion.div>
+
+        {pct === 0 && (
+          <div className="absolute inset-0 flex items-center justify-between gap-2 px-3">
+            <span className={cn("min-w-0 truncate text-sm font-medium", isDark ? "text-white/55" : "text-muted-foreground")}>
+              {label}
+            </span>
+            <span className={cn("shrink-0 text-sm tabular-nums", isDark ? "text-white/40" : "text-muted-foreground")}>
+              0%
+            </span>
+          </div>
+        )}
       </div>
 
-      <p className={cn("mt-1 text-right text-[11px] tabular-nums transition-all duration-300", isDark ? "text-white/45" : "text-muted-foreground")}>
-        {Math.round(votes).toLocaleString("fr-FR")} votes
-      </p>
+      <span
+        className={cn(
+          "w-14 shrink-0 text-right text-[10px] leading-tight tabular-nums",
+          isDark ? "text-white/45" : "text-muted-foreground"
+        )}
+      >
+        {Math.round(votes).toLocaleString("fr-FR")} v.
+      </span>
     </div>
   );
 }
