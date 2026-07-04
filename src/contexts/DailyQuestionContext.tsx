@@ -147,7 +147,7 @@ function useDailyQuestionState(): UseDailyQuestionResult {
       const current = questionRef.current;
 
       if (!currentId || !current) {
-        applyIncomingQuestion(normalized);
+        setIncomingQuestion(normalized);
         return;
       }
 
