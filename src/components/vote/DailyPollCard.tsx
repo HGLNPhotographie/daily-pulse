@@ -76,7 +76,7 @@ export function DailyPollCard() {
         <header className="mb-6 flex w-full max-w-lg items-center justify-end">
           <StreakFlame streak={streak} size="sm" />
         </header>
-        <CurtainReveal open={false} label={KITSH_CURTAIN_LABEL} className="w-full max-w-lg flex-1" />
+        <CurtainReveal open={false} label={KITSH_CURTAIN_LABEL} showWaitingDots className="w-full max-w-lg flex-1" />
       </div>
     );
   }

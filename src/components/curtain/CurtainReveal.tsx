@@ -9,7 +9,8 @@ interface CurtainRevealProps {
   open: boolean;
   children?: React.ReactNode;
   /** Texte affiché sur le panneau fermé (ex: "Kitsh"). */
-  label?: string;
+  /** Affiche « … » animé sous le label (écran d'attente sans question). */
+  showWaitingDots?: boolean;
   onRevealComplete?: () => void;
   className?: string;
 }
@@ -20,7 +21,14 @@ const PANEL_EASE = [0.65, 0, 0.15, 1] as const;
  * Révélation minimaliste : deux panneaux blancs recouvrent l'écran puis
  * s'écartent (haut / bas) pour dévoiler la question sur fond noir.
  */
-export function CurtainReveal({ open, children, label = "Kitsh", onRevealComplete, className }: CurtainRevealProps) {
+export function CurtainReveal({
+  open,
+  children,
+  label = "Kitsh",
+  showWaitingDots = false,
+  onRevealComplete,
+  className,
+}: CurtainRevealProps) {
   const prevOpenRef = useRef(open);
 
   useEffect(() => {
@@ -58,7 +66,7 @@ export function CurtainReveal({ open, children, label = "Kitsh", onRevealComplet
       <AnimatePresence>
         {!open && (
           <>
-            <WhitePanel side="top" label={label} closing={isClosing} />
+            <WhitePanel side="top" label={label} showWaitingDots={showWaitingDots} closing={isClosing} />
             <WhitePanel side="bottom" closing={isClosing} />
           </>
         )}
@@ -70,10 +78,12 @@ export function CurtainReveal({ open, children, label = "Kitsh", onRevealComplet
 function WhitePanel({
   side,
   label,
+  showWaitingDots,
   closing,
 }: {
   side: "top" | "bottom";
   label?: string;
+  showWaitingDots?: boolean;
   closing: boolean;
 }) {
   const isTop = side === "top";
@@ -93,15 +103,32 @@ function WhitePanel({
       )}
     >
       {isTop && (
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.4 }}
-          className="text-sm font-semibold uppercase tracking-[0.35em] text-black/80"
+          className="flex flex-col items-center gap-1"
         >
-          {label}
-        </motion.p>
+          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-black/80">{label}</p>
+          {showWaitingDots && <AnimatedEllipsis />}
+        </motion.div>
       )}
     </motion.div>
+  );
+}
+
+function AnimatedEllipsis() {
+  return (
+    <span className="text-base font-medium tracking-[0.2em] text-black/45" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          animate={{ opacity: [0.15, 1, 0.15] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.22, ease: "easeInOut" }}
+        >
+          .
+        </motion.span>
+      ))}
+    </span>
   );
 }
