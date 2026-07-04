@@ -52,7 +52,13 @@ export function CurtainReveal({
       )}
     >
       {/* Scène noire — question & sondage ; en mode ouvert, la hauteur suit le contenu */}
-      <div className={cn("w-full bg-black", open ? "relative" : "absolute inset-0")}>
+      <div
+        className={cn(
+          "w-full overflow-hidden bg-black",
+          open && "rounded-2xl",
+          open ? "relative" : "absolute inset-0"
+        )}
+      >
         <div
           className={cn(
             "relative flex w-full flex-col items-center px-5 py-8 pb-12",
