@@ -9,6 +9,7 @@ interface CurtainRevealProps {
   open: boolean;
   children?: React.ReactNode;
   /** Texte affiché sur le panneau fermé (ex: "Kitsh"). */
+  label?: string;
   /** Affiche « … » animé sous le label (écran d'attente sans question). */
   showWaitingDots?: boolean;
   onRevealComplete?: () => void;
@@ -66,8 +67,22 @@ export function CurtainReveal({
       <AnimatePresence>
         {!open && (
           <>
-            <WhitePanel side="top" label={label} showWaitingDots={showWaitingDots} closing={isClosing} />
+            <WhitePanel side="top" label={showWaitingDots ? undefined : label} closing={isClosing} />
             <WhitePanel side="bottom" closing={isClosing} />
+            {showWaitingDots && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
+                className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-[0.35em] text-black/80">{label}</p>
+                  <AnimatedEllipsis />
+                </div>
+              </motion.div>
+            )}
           </>
         )}
       </AnimatePresence>
@@ -78,12 +93,10 @@ export function CurtainReveal({
 function WhitePanel({
   side,
   label,
-  showWaitingDots,
   closing,
 }: {
   side: "top" | "bottom";
   label?: string;
-  showWaitingDots?: boolean;
   closing: boolean;
 }) {
   const isTop = side === "top";
@@ -102,16 +115,15 @@ function WhitePanel({
         isTop ? "top-0 items-end justify-center pb-6" : "bottom-0 items-start justify-center pt-6"
       )}
     >
-      {isTop && (
-        <motion.div
+      {isTop && label && (
+        <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.4 }}
-          className="flex flex-col items-center gap-1"
+          className="text-sm font-semibold uppercase tracking-[0.35em] text-black/80"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-black/80">{label}</p>
-          {showWaitingDots && <AnimatedEllipsis />}
-        </motion.div>
+          {label}
+        </motion.p>
       )}
     </motion.div>
   );
@@ -119,11 +131,12 @@ function WhitePanel({
 
 function AnimatedEllipsis() {
   return (
-    <span className="text-base font-medium tracking-[0.2em] text-black/45" aria-hidden>
+    <span className="text-lg font-medium leading-none text-black/55" aria-hidden>
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
-          animate={{ opacity: [0.15, 1, 0.15] }}
+          className="inline-block"
+          animate={{ opacity: [0.2, 1, 0.2] }}
           transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.22, ease: "easeInOut" }}
         >
           .
