@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { Share2, User, UserPlus, Users } from "lucide-react";
+import { Share2, User } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { UserAuthCard } from "@/components/auth/UserAuthCard";
+import { AccountFriendsTab } from "@/components/friends/AccountFriendsTab";
 import { AccountInfoTab } from "@/components/friends/AccountInfoTab";
 import { AccountQrCard } from "@/components/friends/AccountQrCard";
 import { AddFriendsDialog } from "@/components/friends/AddFriendsDialog";
@@ -18,7 +19,13 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { Gender } from "@/types";
 import { cn } from "@/lib/utils";
 
-type AccountTab = "profil" | "infos";
+type AccountTab = "profil" | "amis" | "infos";
+
+const TABS: { key: AccountTab; label: string }[] = [
+  { key: "profil", label: "Mon profil" },
+  { key: "amis", label: "Mes amis" },
+  { key: "infos", label: "Mes infos" },
+];
 
 function ComptePageContent() {
   const searchParams = useSearchParams();
@@ -33,11 +40,15 @@ function ComptePageContent() {
   useEffect(() => {
     const friendId = searchParams.get("addFriend");
     if (!friendId || handledInvite || !friends.enabled || !user?.id) return;
+
+    setTab("amis");
+
     if (friendId === user.id) {
       toast.error("Tu ne peux pas t'ajouter toi-même.");
       setHandledInvite(true);
       return;
     }
+
     setHandledInvite(true);
     void friends.sendRequestByUserId(friendId).then((result) => {
       if (result.error) toast.error(result.error);
@@ -109,51 +120,50 @@ function ComptePageContent() {
       ) : (
         <>
           <div className="flex w-full max-w-md rounded-full border border-black/8 bg-black/[0.02] p-1">
-            {(
-              [
-                ["profil", "Mon profil"],
-                ["infos", "Mes informations"],
-              ] as const
-            ).map(([key, label]) => (
+            {TABS.map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
                 className={cn(
-                  "flex-1 rounded-full py-2 text-xs font-semibold transition-colors",
+                  "relative flex-1 rounded-full px-1 py-2 text-[10px] font-semibold transition-colors sm:text-xs",
                   tab === key ? "bg-white text-black shadow-sm" : "text-black/45"
                 )}
               >
                 {label}
+                {key === "amis" && friends.pendingCount > 0 && tab !== "amis" && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF4F4F] px-0.5 text-[9px] font-bold text-white">
+                    {friends.pendingCount > 9 ? "9+" : friends.pendingCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
 
-          {tab === "profil" ? (
+          {tab === "profil" && (
             <div className="flex w-full max-w-md flex-col gap-4">
               <AccountQrCard userId={user!.id} pseudo={profile?.pseudo ?? null} streak={displayStreak} />
-
               <Button type="button" variant="outline" className="w-full gap-2" onClick={() => void handleShare()}>
                 <Share2 className="h-4 w-4" />
                 Partager
               </Button>
-
-              <Button type="button" variant="outline" className="w-full gap-2" onClick={() => setAddOpen(true)}>
-                <UserPlus className="h-4 w-4" />
-                Ajouter des amis
-              </Button>
-
-              <Button type="button" variant="outline" className="relative w-full gap-2" onClick={() => setRequestsOpen(true)}>
-                <Users className="h-4 w-4" />
-                Demandes d&apos;amis
-                {friends.pendingCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF4F4F] px-1 text-[10px] font-bold text-white">
-                    {friends.pendingCount > 9 ? "9+" : friends.pendingCount}
-                  </span>
-                )}
-              </Button>
             </div>
-          ) : (
+          )}
+
+          {tab === "amis" && (
+            <AccountFriendsTab
+              friends={friends.friends}
+              isLoading={friends.isLoading}
+              pendingCount={friends.pendingCount}
+              onAddClick={() => setAddOpen(true)}
+              onRequestsClick={() => setRequestsOpen(true)}
+              onLoadVote={friends.getFriendLastVote}
+              onRemoveFriend={friends.removeFriend}
+              onBlockFriend={friends.blockFriend}
+            />
+          )}
+
+          {tab === "infos" && (
             <AccountInfoTab
               profile={profile}
               email={user?.email}

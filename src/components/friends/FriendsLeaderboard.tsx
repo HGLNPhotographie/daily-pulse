@@ -12,6 +12,8 @@ interface FriendsLeaderboardProps {
   onLoadVote: (friendId: string) => Promise<FriendLastVote | { error: string }>;
   onRemoveFriend: (friendId: string) => Promise<{ error: string | null }>;
   onBlockFriend: (friendId: string) => Promise<{ error: string | null }>;
+  emptyMessage?: string;
+  showRank?: boolean;
 }
 
 export function FriendsLeaderboard({
@@ -20,6 +22,8 @@ export function FriendsLeaderboard({
   onLoadVote,
   onRemoveFriend,
   onBlockFriend,
+  emptyMessage = "Pas encore d'amis. Partage ton QR code depuis Mon compte.",
+  showRank = true,
 }: FriendsLeaderboardProps) {
   const [selected, setSelected] = useState<FriendListItem | null>(null);
 
@@ -29,15 +33,13 @@ export function FriendsLeaderboard({
 
   if (friends.length === 0) {
     return (
-      <p className="rounded-xl border border-black/8 px-4 py-6 text-center text-sm text-black/45">
-        Pas encore d&apos;amis. Partage ton QR code depuis Mon compte.
-      </p>
+      <p className="rounded-xl border border-black/8 px-4 py-6 text-center text-sm text-black/45">{emptyMessage}</p>
     );
   }
 
   return (
     <>
-      <div className="w-full max-w-sm space-y-2">
+      <div className="w-full space-y-2">
         {friends.map((friend, index) => (
           <button
             key={friend.friend_id}
@@ -48,9 +50,11 @@ export function FriendsLeaderboard({
             )}
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-xs font-semibold tabular-nums">
-                {index + 1}
-              </span>
+              {showRank && (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/5 text-xs font-semibold tabular-nums">
+                  {index + 1}
+                </span>
+              )}
               <div>
                 <p className="font-medium">{friend.pseudo}</p>
                 <p className="text-xs text-black/45">Record {friend.highest_streak} j</p>
