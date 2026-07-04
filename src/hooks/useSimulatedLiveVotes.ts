@@ -2,35 +2,33 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addGrowthToFakeCounts,
-  fakeVotesTotal,
+  computeDeterministicFakeCounts,
+  getSimulatedPulseIndex,
   lerpFakeVoteCounts,
   mergeResultsWithSimulatedVotes,
   monotoneFakeVoteCounts,
-  pickInitialSimulatedVotes,
-  pickNextGrowthBatch,
   SIMULATED_PULSE_ANIMATION_MS,
-  SIMULATED_PULSE_INTERVAL_MS,
   type FakeVoteCounts,
 } from "@/lib/simulated-live-votes";
 import type { Question, QuestionResults } from "@/types";
 import { computeResults } from "@/types";
 
 const EMPTY_FAKE: FakeVoteCounts = { pour: 0, neutre: 0, contre: 0 };
+const SYNC_TICK_MS = 250;
 
 /**
- * Votes fictifs côté client : départ aléatoire, puis +1 palier toutes les 5 s
- * (animation ~2,8 s, jamais à la baisse). N'affecte pas les stats admin.
+ * Votes fictifs synchronisés entre tous les utilisateurs (calcul déterministe).
+ * +10 à +1300 votants toutes les 5 s depuis `active_at`, animation locale entre les vagues.
  */
 export function useSimulatedLiveVotes(
   question: Question | null,
   enabled = true
 ): { displayResults: QuestionResults; displayTotal: number } {
   const [displayFake, setDisplayFake] = useState<FakeVoteCounts>(EMPTY_FAKE);
-  const targetRef = useRef<FakeVoteCounts>(EMPTY_FAKE);
   const displayRef = useRef<FakeVoteCounts>(EMPTY_FAKE);
   const questionIdRef = useRef<string | null>(null);
-  const pulseRef = useRef<number | null>(null);
+  const pulseIndexRef = useRef<number>(-1);
+  const syncRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -38,19 +36,20 @@ export function useSimulatedLiveVotes(
   }, [displayFake]);
 
   useEffect(() => {
-    if (pulseRef.current) window.clearInterval(pulseRef.current);
+    if (syncRef.current) window.clearInterval(syncRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     if (!question || !enabled) {
       questionIdRef.current = null;
-      targetRef.current = EMPTY_FAKE;
+      pulseIndexRef.current = -1;
       displayRef.current = EMPTY_FAKE;
       setDisplayFake(EMPTY_FAKE);
       return;
     }
 
-    const animateToTarget = (from: FakeVoteCounts, to: FakeVoteCounts) => {
+    const animateToTarget = (to: FakeVoteCounts) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      const from = displayRef.current;
       const start = performance.now();
 
       const frame = (now: number) => {
@@ -73,29 +72,33 @@ export function useSimulatedLiveVotes(
       rafRef.current = requestAnimationFrame(frame);
     };
 
-    const pulse = () => {
-      const currentTarget = targetRef.current;
-      const batch = pickNextGrowthBatch(fakeVotesTotal(currentTarget));
-      const nextTarget = addGrowthToFakeCounts(currentTarget, batch);
-      targetRef.current = nextTarget;
-      animateToTarget(displayRef.current, nextTarget);
+    const sync = () => {
+      const now = Date.now();
+      const pulseIndex = getSimulatedPulseIndex(question, now);
+      const target = computeDeterministicFakeCounts(question, now);
+
+      if (questionIdRef.current !== question.id) {
+        questionIdRef.current = question.id;
+        pulseIndexRef.current = pulseIndex;
+        displayRef.current = target;
+        setDisplayFake(target);
+        return;
+      }
+
+      if (pulseIndex !== pulseIndexRef.current) {
+        pulseIndexRef.current = pulseIndex;
+        animateToTarget(target);
+      }
     };
 
-    if (questionIdRef.current !== question.id) {
-      questionIdRef.current = question.id;
-      const initial = pickInitialSimulatedVotes();
-      targetRef.current = initial;
-      displayRef.current = initial;
-      setDisplayFake(initial);
-    }
-
-    pulseRef.current = window.setInterval(pulse, SIMULATED_PULSE_INTERVAL_MS);
+    sync();
+    syncRef.current = window.setInterval(sync, SYNC_TICK_MS);
 
     return () => {
-      if (pulseRef.current) window.clearInterval(pulseRef.current);
+      if (syncRef.current) window.clearInterval(syncRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [question?.id, enabled]);
+  }, [question, enabled]);
 
   const displayResults = useMemo(() => {
     if (!question) {
