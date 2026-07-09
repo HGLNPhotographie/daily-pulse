@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ThumbsDown, ThumbsUp, Minus } from "lucide-react";
 import { getOptionLabel, isSymbolLabel, normalizeQuestionOptions, VOTE_CHOICE_ORDER } from "@/lib/question-options";
 import { triggerHaptic } from "@/lib/capacitor";
 import type { QuestionOption, VoteChoice } from "@/types";
@@ -14,12 +13,6 @@ interface VoteButtonsProps {
   disabled?: boolean;
   selected?: VoteChoice | null;
 }
-
-const ICONS: Record<VoteChoice, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  pour: ThumbsUp,
-  neutre: Minus,
-  contre: ThumbsDown,
-};
 
 export function VoteButtons({ options: optionsProp, onVote, disabled, selected }: VoteButtonsProps) {
   const options = normalizeQuestionOptions(optionsProp);
@@ -37,7 +30,6 @@ export function VoteButtons({ options: optionsProp, onVote, disabled, selected }
     <div className="grid w-full max-w-sm grid-cols-1 gap-3 sm:grid-cols-3">
       {VOTE_CHOICE_ORDER.map((choice) => {
         const label = getOptionLabel(options, choice);
-        const Icon = ICONS[choice];
         const symbolOnly = isSymbolLabel(label);
         const isSelected = selected === choice;
         const isPressed = pressed === choice;
@@ -59,7 +51,6 @@ export function VoteButtons({ options: optionsProp, onVote, disabled, selected }
               isPressed && "scale-[0.97]"
             )}
           >
-            {!symbolOnly && <Icon className="h-5 w-5" strokeWidth={2} />}
             <span className="leading-tight">{label}</span>
           </motion.button>
         );
