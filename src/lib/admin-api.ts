@@ -87,12 +87,12 @@ export async function publishQuestion(
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  void notifySubscribersOfNewQuestion(text, session?.access_token);
+  void notifySubscribersOfNewQuestion(session?.access_token);
 
   return { question };
 }
 
-async function notifySubscribersOfNewQuestion(text: string, accessToken?: string) {
+async function notifySubscribersOfNewQuestion(accessToken?: string) {
   if (!accessToken) return;
   try {
     await fetch("/api/admin/notify-new-question", {
@@ -101,7 +101,6 @@ async function notifySubscribersOfNewQuestion(text: string, accessToken?: string
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ text }),
     });
   } catch {
     /* notification non bloquante */

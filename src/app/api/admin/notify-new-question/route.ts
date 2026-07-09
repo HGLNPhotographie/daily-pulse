@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseServerConfigured, requireAdminFromRequest } from "@/lib/supabase/server";
+import { NEW_QUESTION_PUSH_BODY, NEW_QUESTION_PUSH_TITLE } from "@/lib/push-messages";
 import { sendPushToOptedInUsers } from "@/lib/push-server";
 
 /** Envoie une notification push à tous les abonnés opt-in (nouvelle question). */
@@ -13,13 +14,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: check.error }, { status: check.status });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const questionText = typeof body.text === "string" ? body.text.trim() : "";
-
   try {
     const result = await sendPushToOptedInUsers({
-      title: "📺 Nouvelle question !",
-      body: questionText || "Une nouvelle question vient d'être publiée. Tu as 5 minutes pour voter.",
+      title: NEW_QUESTION_PUSH_TITLE,
+      body: NEW_QUESTION_PUSH_BODY,
       url: "/",
     });
     return NextResponse.json({ ok: true, ...result });
@@ -28,3 +26,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

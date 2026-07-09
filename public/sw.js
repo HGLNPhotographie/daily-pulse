@@ -3,7 +3,7 @@
 // App-shell caching (offline-first léger) + Web Push Notifications
 // ============================================================================
 
-const CACHE_NAME = "daily-pulse-shell-v2";
+const CACHE_NAME = "daily-pulse-shell-v3";
 const APP_SHELL = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -42,15 +42,19 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "📺 C'est l'heure du Rendez-vous !",
-    body: "La question du jour vient de tomber. Tu as 5 minutes pour voter.",
+    title: "Nouvelle question",
+    body: "Rends-toi vite sur Kitsh !",
   };
 
   if (event.data) {
     try {
-      payload = { ...payload, ...event.data.json() };
+      const data = event.data.json();
+      payload = {
+        title: data.title || payload.title,
+        body: data.body || payload.body,
+      };
     } catch {
-      payload.body = event.data.text();
+      payload.body = event.data.text() || payload.body;
     }
   }
 
@@ -60,7 +64,7 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-96.png",
       vibrate: [80, 40, 80],
-      tag: "daily-pulse-question",
+      tag: "kitsh-new-question",
       renotify: true,
       requireInteraction: true,
       data: { url: "/" },

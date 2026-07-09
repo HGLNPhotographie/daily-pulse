@@ -137,7 +137,7 @@ export function AccountInfoTab({ profile, email, isLoading, onSave, onSignOut, o
           </span>
         </label>
 
-        {pushSupported && (
+        {pushSupported ? (
           <label
             className={`flex items-start gap-3 rounded-xl border border-black/8 px-3 py-3 ${
               pushDenied ? "cursor-not-allowed opacity-60" : "cursor-pointer"
@@ -155,10 +155,15 @@ export function AccountInfoTab({ profile, email, isLoading, onSave, onSignOut, o
               <span className="mt-0.5 block text-black/45">
                 {pushDenied
                   ? "Autorise les notifications dans les réglages de ton navigateur pour les réactiver."
-                  : "Reçois une alerte dès qu'une nouvelle question est publiée."}
+                  : "Reçois « Nouvelle question » dès qu'un sondage est publié."}
               </span>
             </span>
           </label>
+        ) : (
+          <div className="rounded-xl border border-black/8 bg-black/[0.02] px-3 py-3 text-sm text-black/45">
+            <p className="font-medium text-black/70">Notifications push</p>
+            <p className="mt-0.5">Indisponibles sur cet appareil ou navigateur.</p>
+          </div>
         )}
 
         <Button type="submit" disabled={saving || isLoading} className="w-full">
