@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseServerConfigured, requireAdminFromRequest } from "@/lib/supabase/server";
 import { sendPushToOptedInUsers } from "@/lib/push-server";
 
-/**
- * Déclenchée manuellement depuis le panneau admin (`/admin`) pour envoyer,
- * à la demande, la Web Push "C'est l'heure du Rendez-vous !" à tous les
- * abonnés opt-in — sans attendre le scheduler automatique (`/api/cron/notify`).
- */
+/** Envoie une notification push à tous les abonnés opt-in (nouvelle question). */
 export async function POST(request: NextRequest) {
   if (!isSupabaseServerConfigured) {
     return NextResponse.json({ ok: true, mode: "demo", sent: 0 });
@@ -18,11 +14,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const title: string = body.title || "📺 C'est l'heure du Rendez-vous !";
-  const message: string = body.body || "La question du jour vient de tomber. Tu as 5 minutes pour voter.";
+  const questionText = typeof body.text === "string" ? body.text.trim() : "";
 
   try {
-    const result = await sendPushToOptedInUsers({ title, body: message, url: "/" });
+    const result = await sendPushToOptedInUsers({
+      title: "📺 Nouvelle question !",
+      body: questionText || "Une nouvelle question vient d'être publiée. Tu as 5 minutes pour voter.",
+      url: "/",
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Échec de l'envoi push.";

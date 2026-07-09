@@ -82,7 +82,30 @@ export async function publishQuestion(
     .single();
 
   if (error) return { question: null, error: error.message };
-  return { question: data as Question };
+
+  const question = data as Question;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  void notifySubscribersOfNewQuestion(text, session?.access_token);
+
+  return { question };
+}
+
+async function notifySubscribersOfNewQuestion(text: string, accessToken?: string) {
+  if (!accessToken) return;
+  try {
+    await fetch("/api/admin/notify-new-question", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+  } catch {
+    /* notification non bloquante */
+  }
 }
 
 export async function scheduleQuestion(

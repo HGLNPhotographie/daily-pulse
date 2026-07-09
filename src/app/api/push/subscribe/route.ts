@@ -28,5 +28,8 @@ export async function POST(request: NextRequest) {
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("users").update({ push_notifications_enabled: true }).eq("id", auth.user.id);
+
   return NextResponse.json({ ok: true });
 }

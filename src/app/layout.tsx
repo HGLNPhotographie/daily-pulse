@@ -25,10 +25,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Kitsh",
   },
-  icons: {
-    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-  },
 };
 
 export const viewport: Viewport = {
@@ -45,11 +41,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${spaceGrotesk.variable} h-full`}>
-      <body className="relative flex min-h-full flex-col overflow-x-hidden bg-white text-foreground">
+    <html lang="fr" className={`${spaceGrotesk.variable} h-full min-h-dvh`}>
+      <body className="relative flex min-h-dvh flex-col overflow-x-hidden bg-white text-foreground">
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform())document.documentElement.classList.add('capacitor-native')}catch(e){}})();",
+          }}
+        />
         <AppProviders>
           <AdminDashboardBar />
-          <main className="relative z-10 flex flex-1 flex-col pb-24">{children}</main>
+          <main className="relative z-10 flex flex-1 flex-col pb-bottom-nav">{children}</main>
         </AppProviders>
         <BottomNav />
         <Toaster theme="light" position="top-center" />

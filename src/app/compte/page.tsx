@@ -30,7 +30,7 @@ const TABS: { key: AccountTab; label: string }[] = [
 function ComptePageContent() {
   const searchParams = useSearchParams();
   const { status, user, isAnonymous, signOut } = useUserSession();
-  const { profile, isLoading, updateProfile, displayStreak } = useUserProfile();
+  const { profile, isLoading, updateProfile, displayStreak, refresh } = useUserProfile();
   const friends = useFriends();
   const [tab, setTab] = useState<AccountTab>("profil");
   const [addOpen, setAddOpen] = useState(false);
@@ -170,6 +170,7 @@ function ComptePageContent() {
               isLoading={isLoading}
               onSave={handleSaveInfo}
               onSignOut={() => void signOut()}
+              onPushChange={() => void refresh()}
             />
           )}
 

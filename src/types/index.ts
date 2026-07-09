@@ -48,6 +48,7 @@ export interface UserProfile {
   is_banned?: boolean;
   banned_at?: string | null;
   votes_private?: boolean;
+  push_notifications_enabled?: boolean;
   created_at: string;
 }
 

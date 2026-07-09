@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
   appId: "app.dailypulse.mobile",
   appName: "Kitsh",
   webDir: "public",
-  backgroundColor: "#0a0612",
+  backgroundColor: "#000000",
   ...(serverUrl && {
     server: {
       url: serverUrl,
@@ -32,22 +32,22 @@ const config: CapacitorConfig = {
     },
   }),
   ios: {
-    contentInset: "always",
-    backgroundColor: "#0a0612",
+    contentInset: "automatic",
+    backgroundColor: "#000000",
   },
   android: {
-    backgroundColor: "#0a0612",
+    backgroundColor: "#000000",
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 600,
-      backgroundColor: "#0a0612",
+      backgroundColor: "#000000",
       showSpinner: false,
       androidSplashResourceName: "splash",
     },
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#0a0612",
+      backgroundColor: "#000000",
     },
   },
 };

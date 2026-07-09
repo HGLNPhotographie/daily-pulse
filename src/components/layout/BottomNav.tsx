@@ -17,7 +17,7 @@ export function BottomNav() {
   if (pathname?.startsWith("/admin")) return null;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/8 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/8 bg-white pt-2 pb-[var(--bottom-nav-safe)]">
       <div className="mx-auto flex max-w-md items-center justify-around">
         {ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;

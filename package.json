@@ -10,6 +10,7 @@
     "lint": "eslint",
     "cap:sync": "cap sync",
     "cap:assets": "capacitor-assets generate",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "cap:open:ios": "cap open ios",
     "cap:open:android": "cap open android",
     "cap:run:ios": "cap run ios",

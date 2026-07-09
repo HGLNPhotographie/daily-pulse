@@ -14,6 +14,8 @@ export function CapacitorBootstrap() {
     (async () => {
       if (!(await isNativePlatform())) return;
 
+      document.documentElement.classList.add("capacitor-native");
+
       const [{ SplashScreen }, { StatusBar, Style }, { App }] = await Promise.all([
         import("@capacitor/splash-screen"),
         import("@capacitor/status-bar"),
@@ -21,7 +23,7 @@ export function CapacitorBootstrap() {
       ]);
 
       await StatusBar.setStyle({ style: Style.Dark }).catch(() => null);
-      await StatusBar.setBackgroundColor({ color: "#0a0612" }).catch(() => null);
+      await StatusBar.setBackgroundColor({ color: "#000000" }).catch(() => null);
       await SplashScreen.hide().catch(() => null);
 
       App.addListener("backButton", ({ canGoBack }) => {

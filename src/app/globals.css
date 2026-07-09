@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant capacitor-native (&:is(html.capacitor-native *));
 
 @theme inline {
   --color-background: var(--background);
@@ -51,6 +52,10 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+  /* Hauteur réservée sous le contenu pour la barre de navigation fixe */
+  --bottom-nav-content: 3.25rem;
+  --bottom-nav-safe: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --bottom-nav-offset: calc(var(--bottom-nav-content) + var(--bottom-nav-safe));
   --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
@@ -81,6 +86,11 @@
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #e5e5e5;
   --sidebar-ring: #a3a3a3;
+}
+
+html.capacitor-native {
+  /* Capacitor (contentInset) gère déjà la zone sûre : éviter le double padding */
+  --bottom-nav-safe: 0.5rem;
 }
 
 .dark {
@@ -116,11 +126,12 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
   html {
     @apply font-sans;
+    min-height: 100dvh;
+  }
+  body {
+    @apply min-h-dvh bg-background text-foreground antialiased;
   }
 }
 
@@ -128,6 +139,10 @@
   .font-display {
     font-family: var(--font-sans);
     font-weight: 600;
+  }
+
+  .pb-bottom-nav {
+    padding-bottom: var(--bottom-nav-offset);
   }
 
   /* Conservés pour l'admin / rétrocompatibilité */

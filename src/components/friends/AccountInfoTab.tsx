@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ageRangeLabel } from "@/lib/user-profile";
+import {
+  getPushPermission,
+  isPushSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/lib/push";
 import type { Gender, UserProfile } from "@/types";
 
 const GENDERS: { value: Gender; label: string }[] = [
@@ -26,21 +32,43 @@ interface AccountInfoTabProps {
   isLoading: boolean;
   onSave: (updates: { pseudo: string; gender: Gender | ""; votes_private: boolean }) => Promise<{ error: string | null }>;
   onSignOut: () => void;
+  onPushChange?: () => void;
 }
 
-export function AccountInfoTab({ profile, email, isLoading, onSave, onSignOut }: AccountInfoTabProps) {
+export function AccountInfoTab({ profile, email, isLoading, onSave, onSignOut, onPushChange }: AccountInfoTabProps) {
   const [pseudo, setPseudo] = useState("");
   const [gender, setGender] = useState<Gender | "">("");
   const [votesPrivate, setVotesPrivate] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const pushSupported = isPushSupported();
+  const pushDenied = pushSupported && getPushPermission() === "denied";
 
   useEffect(() => {
     if (profile) {
       setPseudo(profile.pseudo ?? "");
       setGender(profile.gender ?? "");
       setVotesPrivate(Boolean(profile.votes_private));
+      setPushEnabled(Boolean(profile.push_notifications_enabled));
     }
   }, [profile]);
+
+  const handlePushToggle = async (checked: boolean) => {
+    if (!pushSupported || pushDenied) return;
+    setPushLoading(true);
+    const result = checked ? await subscribeToPush() : await unsubscribeFromPush();
+    setPushLoading(false);
+
+    if (!result.ok) {
+      toast.error(result.error ?? "Impossible de modifier les notifications.");
+      return;
+    }
+
+    setPushEnabled(checked);
+    toast.success(checked ? "Notifications push activées." : "Notifications push désactivées.");
+    onPushChange?.();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +136,30 @@ export function AccountInfoTab({ profile, email, isLoading, onSave, onSignOut }:
             <span className="mt-0.5 block text-black/45">Tes amis ne verront pas ce que tu as voté.</span>
           </span>
         </label>
+
+        {pushSupported && (
+          <label
+            className={`flex items-start gap-3 rounded-xl border border-black/8 px-3 py-3 ${
+              pushDenied ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={pushEnabled}
+              disabled={pushLoading || pushDenied}
+              onChange={(e) => void handlePushToggle(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-black/20"
+            />
+            <span className="text-left text-sm leading-snug">
+              <span className="font-medium">Notifications push</span>
+              <span className="mt-0.5 block text-black/45">
+                {pushDenied
+                  ? "Autorise les notifications dans les réglages de ton navigateur pour les réactiver."
+                  : "Reçois une alerte dès qu'une nouvelle question est publiée."}
+              </span>
+            </span>
+          </label>
+        )}
 
         <Button type="submit" disabled={saving || isLoading} className="w-full">
           {saving ? "Enregistrement..." : "Enregistrer"}

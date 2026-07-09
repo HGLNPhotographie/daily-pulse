@@ -3,7 +3,7 @@
 // App-shell caching (offline-first léger) + Web Push Notifications
 // ============================================================================
 
-const CACHE_NAME = "daily-pulse-shell-v1";
+const CACHE_NAME = "daily-pulse-shell-v2";
 const APP_SHELL = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
