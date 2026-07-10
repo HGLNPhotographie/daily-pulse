@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, Tv, User } from "lucide-react";
+import { Flame, PartyPopper, Tv, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/", label: "Show", icon: Tv },
+  { href: "/soiree", label: "Soirée", icon: PartyPopper },
   { href: "/streak", label: "Flamme", icon: Flame },
   { href: "/compte", label: "Compte", icon: User },
 ];
@@ -14,13 +15,13 @@ const ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname?.startsWith("/admin")) return null;
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/soiree/party")) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-black/8 bg-white pt-2 pb-[var(--bottom-nav-safe)]">
       <div className="mx-auto flex max-w-md items-center justify-around">
         {ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active = pathname === href || (href !== "/" && pathname?.startsWith(href));
           return (
             <Link
               key={href}
