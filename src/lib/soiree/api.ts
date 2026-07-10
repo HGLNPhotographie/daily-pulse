@@ -92,6 +92,7 @@ export function formatSoireeError(message: string): string {
   if (message.includes("SOIREE_NO_QUESTIONS")) return "Aucune question rédigée.";
   if (message.includes("SOIREE_VOTE_SELF")) return "Tu ne peux pas te choisir toi-même.";
   if (message.includes("SOIREE_ROUND_CLOSED")) return "Le temps est écoulé.";
+  if (message.includes("SOIREE_ROUND_NOT_EXPIRED")) return "Le vote est encore ouvert.";
   if (message.includes("AUTH_REQUIRED")) return "Session requise.";
   return message;
 }

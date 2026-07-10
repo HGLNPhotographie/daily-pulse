@@ -101,12 +101,31 @@ export default function SoireePartyPage() {
   const allPlayersReady = players.length > 0 && players.every((p) => p.writing_done);
 
   useEffect(() => {
-    if (party?.status === "results" && rpcSession && !results) {
+    if (party?.status !== "results" || !rpcSession || results) return;
+
+    const fetchResults = () => {
       void getSoireeRoundResults(rpcSession).then((r) => {
         if (r) setResults(r);
       });
-    }
+    };
+
+    fetchResults();
+    const id = setInterval(fetchResults, 1000);
+    return () => clearInterval(id);
   }, [party?.status, rpcSession, results]);
+
+  const finalizeRound = (rpc: RpcSession) => {
+    void closeSoireeRound(rpc)
+      .then((r) => {
+        setResults(r);
+        setHasVoted(false);
+      })
+      .catch(() => {
+        void getSoireeRoundResults(rpc).then((r) => {
+          if (r) setResults(r);
+        });
+      });
+  };
 
   useEffect(() => {
     if (!party?.round_ends_at || party.status !== "playing") {
@@ -116,19 +135,14 @@ export default function SoireePartyPage() {
     const tick = () => {
       const left = Math.max(0, Math.ceil((new Date(party.round_ends_at!).getTime() - Date.now()) / 1000));
       setSecondsLeft(left);
-      if (left === 0 && session?.isHost && rpcSession && !results) {
-        void closeSoireeRound(rpcSession)
-          .then((r) => {
-            setResults(r);
-            setHasVoted(false);
-          })
-          .catch(() => null);
+      if (left === 0 && rpcSession && !results) {
+        finalizeRound(rpcSession);
       }
     };
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [party?.round_ends_at, party?.status, rpcSession, results, session?.isHost]);
+  }, [party?.round_ends_at, party?.status, rpcSession, results]);
 
   useEffect(() => {
     if (party?.status === "playing" && question) {
@@ -269,8 +283,12 @@ export default function SoireePartyPage() {
     );
   }
 
+  const isGamePhase = party.status === "playing" || party.status === "results";
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 bg-white px-4 pt-6 pb-8">
+    <div
+      className={`flex min-h-0 flex-1 flex-col bg-white px-4 pb-8 ${isGamePhase ? "" : "gap-6 pt-6"}`}
+    >
       {party.status === "lobby" && (
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
           {session.isHost && <SoireeQrCard joinCode={party.join_code} />}
@@ -365,11 +383,13 @@ export default function SoireePartyPage() {
       )}
 
       {(party.status === "playing" || party.status === "results") && question && (
-        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-5">
-          <SoireeWheel spinning={wheelSpinning} />
-
-          {!wheelSpinning && (
-            <>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {wheelSpinning ? (
+            <div className="flex flex-1 items-center justify-center">
+              <SoireeWheel spinning centered />
+            </div>
+          ) : (
+            <div className="mx-auto flex w-full max-w-md flex-col items-center gap-5 pt-[max(3rem,env(safe-area-inset-top,0px))]">
               <div className="w-full rounded-2xl bg-black px-4 py-6 text-center text-white">
                 <p className="text-xs uppercase tracking-widest text-white/50">
                   {SOIREE_QUESTION_TYPE_LABELS[question.question_type]}
@@ -403,8 +423,12 @@ export default function SoireePartyPage() {
                 </div>
               )}
 
-              {hasVoted && party.status === "playing" && (
+              {hasVoted && party.status === "playing" && !results && (
                 <p className="text-sm text-black/45">Vote enregistré — résultats dans {secondsLeft}s</p>
+              )}
+
+              {party.status === "results" && !results && (
+                <p className="text-sm text-black/45">Calcul des résultats…</p>
               )}
 
               {results && (
@@ -428,7 +452,7 @@ export default function SoireePartyPage() {
                   )}
                 </>
               )}
-            </>
+            </div>
           )}
         </div>
       )}

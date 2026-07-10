@@ -4,13 +4,16 @@ import { motion } from "framer-motion";
 
 interface SoireeWheelProps {
   spinning: boolean;
+  centered?: boolean;
 }
 
-export function SoireeWheel({ spinning }: SoireeWheelProps) {
+export function SoireeWheel({ spinning, centered }: SoireeWheelProps) {
   if (!spinning) return null;
 
+  const sizeClass = centered ? "h-52 w-52" : "h-40 w-40";
+
   return (
-    <div className="relative flex h-40 w-40 items-center justify-center">
+    <div className={`relative flex items-center justify-center ${sizeClass}`}>
       <motion.div
         className="absolute inset-0 rounded-full border-[6px] border-black/10"
         animate={{ rotate: 1080 }}
@@ -29,7 +32,7 @@ export function SoireeWheel({ spinning }: SoireeWheelProps) {
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-black text-xl text-white shadow-lg"
+        className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-black text-2xl text-white shadow-lg"
       >
         ?
       </motion.div>
